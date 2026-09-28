@@ -1,12 +1,5 @@
+
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-from app.config import API_KEY
-
-client = TestClient(app)
-
-headers = {"X-API-Key": API_KEY}
 
 
 @pytest.mark.parametrize(
@@ -20,20 +13,20 @@ headers = {"X-API-Key": API_KEY}
         {"message": "Hello", "max_tokens": -10},
     ],
 )
-def test_invalid_chat_input(payload):
+def test_invalid_chat_input(client, auth_headers, payload):
     response = client.post(
-        "/chat",
-        headers=headers,
+        "/api/chat/chat",
+        headers=auth_headers,
         json=payload,
     )
 
     assert response.status_code == 422
 
 
-def test_missing_message():
+def test_missing_message(client, auth_headers):
     response = client.post(
-        "/chat",
-        headers=headers,
+        "/api/chat/chat",
+        headers=auth_headers,
         json={},
     )
 

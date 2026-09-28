@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import EmailStr
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import datetime
 
 
 class ChatRequest(BaseModel):
@@ -39,3 +41,32 @@ class ChatResponse(BaseModel):
         ...,
         json_schema_extra={"example": "Hello!"}
     )
+
+class ChatHistoryItem(BaseModel):
+    id: str
+    message: str
+    response: str
+    model:str
+    created_at: datetime
+
+class ChatHistoryResponse(BaseModel):
+    count: int
+    history: list[ChatHistoryItem]
+
+
+class UserRegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: EmailStr
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str

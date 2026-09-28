@@ -1,3 +1,4 @@
+from app.database import create_users_index
 from app.database import close_mongodb_connection
 from app.database import connect_to_mongodb
 from fastapi import FastAPI
@@ -13,6 +14,7 @@ from app.exceptions import app_exception_handler
 from app.custom_exceptions import AppException
 from app.middleware import request_id_middleware
 from contextlib import asynccontextmanager
+from app.routes import auth
 
 logger = logging.getLogger()
 
@@ -30,6 +32,7 @@ logger.setLevel(logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_to_mongodb()
+    await create_users_index()
 
     yield
 
@@ -85,6 +88,11 @@ app.add_middleware(
 )
 
 app.include_router(chat_router,prefix="/api/chat")
+app.include_router(
+    auth.router,
+    prefix="/api/auth",
+    tags=["Authentication"],
+)
 
 
 @app.get("/")
