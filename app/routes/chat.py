@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
+from fastapi.responses import StreamingResponse
 from app.schemas import ChatRequest,ChatResponse, ChatHistoryResponse
-from app.services.chat_service import generate_response
+from app.services.chat_service import generate_response, generate_streaming_response
 import logging
 import time
 from app.limiter import limiter
@@ -39,7 +40,11 @@ async def chat(
             body.message,
             body.temperature,
             body.max_tokens,
+            user_id=current_user["user_id"],
         )
+
+        answer = result["response"]
+        sources = result["sources"]
 
         duration = time.perf_counter() - start_time
 
@@ -48,11 +53,11 @@ async def chat(
         await save_chat_history(
             user_id=current_user["user_id"],
             message=body.message,
-            response=result,
+            response=answer,
             model=MODEL_NAME,
         )
 
-        return ChatResponse(response=result)
+        return ChatResponse(response=answer, sources=sources)
 
     except TimeoutError:
         logger.exception(
@@ -73,6 +78,44 @@ async def chat(
             status_code=502,
             detail="AI service is temporarily unavailable",
         )
+
+@router.post(
+    "/chat/stream",
+    summary="Stream AI response",
+    description="Stream an AI response token by token. Requires a valid access token.",
+    tags=["Chat"],
+)
+@limiter.limit("5/minute")
+async def chat_stream(
+    request: Request,
+    body: ChatRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    full_response = []
+
+    async def generate():
+        async for chunk in generate_streaming_response(
+            message=body.message,
+            temperature=body.temperature,
+            max_tokens=body.max_tokens,
+            user_id=current_user["user_id"],
+        ):
+            full_response.append(chunk)
+            yield chunk
+        
+        complete_response = "".join(full_response)
+
+        await save_chat_history(
+            user_id=current_user["user_id"],
+            message=body.message,
+            response=complete_response,
+            model=MODEL_NAME,
+        )
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain",
+    )
 
 
 @router.get(

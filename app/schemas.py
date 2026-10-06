@@ -35,13 +35,6 @@ class ChatRequest(BaseModel):
 
         return value
 
-
-class ChatResponse(BaseModel):
-    response: str = Field(
-        ...,
-        json_schema_extra={"example": "Hello!"}
-    )
-
 class ChatHistoryItem(BaseModel):
     id: str
     message: str
@@ -70,3 +63,39 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+class IndexDocumentRequest(BaseModel):
+    text: str = Field(min_length=1)
+    document_id: str | None = None
+
+
+class IndexDocumentResponse(BaseModel):
+    document_id: str
+    chunks_indexed: int
+
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=3, ge=1, le=20)
+
+class SearchResult(BaseModel):
+    id: str
+    text: str
+    distance: float
+    metadata: dict
+
+class SearchResponse(BaseModel):
+    results: list[SearchResult]
+
+class SourceReference(BaseModel):
+    document_id: str
+    text: str
+
+
+class ChatResponse(BaseModel):
+    response: str = Field(
+        ...,
+        json_schema_extra={"example": "Hello!"}
+    )
+    sources: list[SourceReference] = Field(
+        default_factory=list
+    )

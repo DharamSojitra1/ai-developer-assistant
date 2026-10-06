@@ -110,3 +110,23 @@ async def revoke_refresh_token(token_hash: str):
         {"$set": {"revoked": True}},
         return_document=ReturnDocument.BEFORE,
     )
+
+async def get_recent_chat_history(
+    user_id: str,
+    limit: int = 10,
+):
+    cursor = (
+        database["chat_history"]
+        .find({"user_id": user_id})
+        .sort("created_at", -1)
+        .limit(limit)
+    )
+
+    history = await cursor.to_list(length=limit)
+
+    for item in history:
+        item["id"] = str(item.pop("_id"))
+
+    history.reverse()
+
+    return history

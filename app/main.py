@@ -15,6 +15,7 @@ from app.custom_exceptions import AppException
 from app.middleware import request_id_middleware
 from contextlib import asynccontextmanager
 from app.routes import auth
+from app.routes import rag
 
 logger = logging.getLogger()
 
@@ -65,6 +66,10 @@ app = FastAPI(
         "name": "Chat",
         "description": "AI chat and response generation endpoints.",
     },
+    {
+        "name": "RAG",
+        "description": "Retrieval-Augmented Generation endpoints.",
+    },
 ]
 )
 
@@ -87,13 +92,17 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"]
 )
 
-app.include_router(chat_router,prefix="/api/chat")
+app.include_router(chat_router,prefix="/api/chat",tags=["Chat"])
 app.include_router(
     auth.router,
     prefix="/api/auth",
     tags=["Authentication"],
 )
-
+app.include_router(
+    rag.router,
+    prefix="/api/rag",
+    tags=["RAG"],
+)
 
 @app.get("/")
 async def root():
