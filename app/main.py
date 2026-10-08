@@ -16,6 +16,7 @@ from app.middleware import request_id_middleware
 from contextlib import asynccontextmanager
 from app.routes import auth
 from app.routes import rag
+from app.routes import agent
 
 logger = logging.getLogger()
 
@@ -102,6 +103,11 @@ app.include_router(
     rag.router,
     prefix="/api/rag",
     tags=["RAG"],
+)
+app.include_router(
+    agent.router,
+    prefix="/api",
+    tags=["Agent"],
 )
 
 @app.get("/")

@@ -1,18 +1,25 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from google.api_core.exceptions import ServiceUnavailable
 
+import httpx
 import pytest
+from groq import APITimeoutError
 
 from app.services import llm_service
+
+
+def make_timeout_error():
+    return APITimeoutError(
+        request=httpx.Request("POST", "https://api.groq.com")
+    )
 
 
 @pytest.mark.anyio
 async def test_retry_success(monkeypatch):
     mock_ainvoke = AsyncMock(
         side_effect=[
-            ServiceUnavailable("Temporary error"),
-            ServiceUnavailable("Temporary error"),
+            make_timeout_error(),
+            make_timeout_error(),
             SimpleNamespace(text="Success"),
         ]
     )
@@ -26,7 +33,7 @@ async def test_retry_success(monkeypatch):
 
     monkeypatch.setattr(
         llm_service,
-        "ChatGoogleGenerativeAI",
+        "ChatGroq",
         FakeLLM,
     )
 

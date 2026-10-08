@@ -7,7 +7,7 @@ import time
 from app.limiter import limiter
 from app.dependencies import get_current_user
 from app.database import save_chat_history, get_chat_history
-from app.config import MODEL_NAME
+from app.config import GROQ_MODEL_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ async def chat(
             user_id=current_user["user_id"],
             message=body.message,
             response=answer,
-            model=MODEL_NAME,
+            model=GROQ_MODEL_NAME,
         )
 
         return ChatResponse(response=answer, sources=sources)
@@ -109,7 +109,7 @@ async def chat_stream(
             user_id=current_user["user_id"],
             message=body.message,
             response=complete_response,
-            model=MODEL_NAME,
+            model=GROQ_MODEL_NAME,
         )
 
     return StreamingResponse(

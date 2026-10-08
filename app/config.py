@@ -5,7 +5,8 @@ load_dotenv()
 
 APP_NAME = os.getenv("APP_NAME", "AI Developer Assistant")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-120b")
 MOCK_MODE = os.getenv("MOCK_MODE", "true").lower() == "true"
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
 FRONTEND_URL = "http://localhost:5173"

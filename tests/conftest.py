@@ -1,12 +1,16 @@
+import sys
 from contextlib import asynccontextmanager
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient, MongoClient
 
 from app.main import app
 from app import database as db
 from app.config import MONGODB_URI
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 
 TEST_DB_NAME = "ai_developer_assistant_test"
@@ -35,6 +39,19 @@ def test_db():
 
         with MongoClient(MONGODB_URI) as sync_client:
             sync_client.drop_database(TEST_DB_NAME)
+
+
+@pytest_asyncio.fixture
+async def async_test_db(test_db, monkeypatch):
+    # AsyncMongoClient is bound to the event loop it is first used on,
+    # and pytest-asyncio gives each test its own loop.
+    client = AsyncMongoClient(MONGODB_URI)
+    monkeypatch.setattr(db, "database", client[TEST_DB_NAME])
+
+    try:
+        yield db.database
+    finally:
+        await client.close()
 
 
 @pytest.fixture(scope="session")

@@ -1,9 +1,9 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from app.config import (
-    GEMINI_API_KEY,
-    MODEL_NAME,
+    GROQ_API_KEY,
+    GROQ_MODEL_NAME,
     REQUEST_TIMEOUT,
 )
 
@@ -14,11 +14,25 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-from google.api_core.exceptions import (
-    DeadlineExceeded,
-    ServiceUnavailable,
+from groq import (
+    APIConnectionError,
+    APITimeoutError,
     InternalServerError,
+    RateLimitError,
 )
+
+
+def create_chat_model(
+    temperature: float,
+    max_tokens: int,
+) -> ChatGroq:
+    return ChatGroq(
+        model=GROQ_MODEL_NAME,
+        api_key=GROQ_API_KEY,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=REQUEST_TIMEOUT,
+    )
 
 
 @retry(
@@ -28,9 +42,10 @@ from google.api_core.exceptions import (
         (
             TimeoutError,
             ConnectionError,
-            DeadlineExceeded,
-            ServiceUnavailable,
+            APIConnectionError,
+            APITimeoutError,
             InternalServerError,
+            RateLimitError,
         )
     ),
     reraise=True,
@@ -42,13 +57,7 @@ async def generate_ai_response(
     context: str | None = None,
 ) -> str:
 
-    llm = ChatGoogleGenerativeAI(
-        model=MODEL_NAME,
-        api_key=GEMINI_API_KEY,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=REQUEST_TIMEOUT,
-    )
+    llm = create_chat_model(temperature, max_tokens)
 
     prompt_template = ChatPromptTemplate.from_messages([
     (
@@ -92,13 +101,7 @@ def create_rag_chain(
     temperature: float,
     max_tokens: int,
 ):
-    llm = ChatGoogleGenerativeAI(
-        model=MODEL_NAME,
-        api_key=GEMINI_API_KEY,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=REQUEST_TIMEOUT,
-    )
+    llm = create_chat_model(temperature, max_tokens)
 
     prompt_template = ChatPromptTemplate.from_messages(
         [
@@ -139,13 +142,7 @@ def create_streaming_rag_chain(
     temperature: float,
     max_tokens: int,
 ):
-    llm = ChatGoogleGenerativeAI(
-        model=MODEL_NAME,
-        api_key=GEMINI_API_KEY,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=REQUEST_TIMEOUT,
-    )
+    llm = create_chat_model(temperature, max_tokens)
 
     prompt_template = ChatPromptTemplate.from_messages(
         [
