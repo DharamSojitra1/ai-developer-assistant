@@ -16,7 +16,6 @@ async def search_knowledge_base(query: str) -> str:
     
     results = await rag_service.retrieve(
         query=query,
-        top_k=3
     )
 
     if not results:

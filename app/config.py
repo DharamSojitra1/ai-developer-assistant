@@ -39,3 +39,16 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(
 
 if not JWT_SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY is missing from environment variables")
+
+RAG_DISTANCE_THRESHOLD = float(os.getenv("RAG_DISTANCE_THRESHOLD", "0.35"))
+RAG_RETRIEVAL_TOP_K = int(os.getenv("RAG_RETRIEVAL_TOP_K", "10"))
+RAG_FINAL_TOP_K = int(os.getenv("RAG_FINAL_TOP_K", "3"))
+RERANKER_MODEL_NAME = os.getenv(
+    "RERANKER_MODEL_NAME",
+    "cross-encoder/ms-marco-MiniLM-L6-v2",
+)
+
+RERANKER_DEVICE = os.getenv(
+    "RERANKER_DEVICE",
+    "auto",
+)

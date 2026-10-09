@@ -1,6 +1,5 @@
 from typing import Annotated, TypedDict
 import json
-from langchain_core.messages import AIMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
@@ -14,6 +13,12 @@ from app.services.tool_llm_service import create_tool_llm
 from app.tools.calculator import calculator
 from app.tools.rag_search import search_knowledge_base
 from app.tools.text_analyzer import analyze_text
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 
 class AgentState(TypedDict):
@@ -69,16 +74,42 @@ def collect_sources(state: AgentState):
         try:
             tool_data = json.loads(message.content)
 
-            sources.extend(
-                tool_data.get("results", [])
-            )
+            for result in tool_data.get("results", []):
+                source_key = (
+                    result.get("document_id"),
+                    result.get("text"),
+                )
+
+                existing_keys = {
+                    (
+                        source.get("document_id"),
+                        source.get("text"),
+                    )
+                    for source in sources
+                }
+
+                if source_key not in existing_keys:
+                    sources.append(result)
 
         except (json.JSONDecodeError, TypeError):
             continue
 
-    return {
-        "sources": sources,
-    }
+    return {"sources": sources}
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    retry=retry_if_exception_type(
+        (
+            TimeoutError,
+            ConnectionError,
+        )
+    ),
+    reraise=True,
+)
+def invoke_agent_llm(llm,messages):
+    return llm.invoke(messages)
 
 def create_agent_graph(
     temperature: float = 0,
@@ -98,11 +129,9 @@ def create_agent_graph(
     llm_with_tools = llm.bind_tools(tools)
 
     def call_llm(state: AgentState):
-        response = llm_with_tools.invoke(
-            [
-                SystemMessage(content=SYSTEM_PROMPT),
-                *state["messages"],
-            ]
+        response = invoke_agent_llm(
+            llm_with_tools,
+            [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]],
         )
 
         return {
@@ -112,12 +141,16 @@ def create_agent_graph(
             ),
         }
 
-    tool_node = ToolNode(tools)
+    tool_node = ToolNode(
+        tools,
+        handle_tool_errors=True,
+    )
 
     builder = StateGraph(AgentState)
 
     builder.add_node("llm", call_llm)
     builder.add_node("tools", tool_node)
+    builder.add_node("collect_sources", collect_sources)
     builder.add_node("max_iterations", max_iterations)
 
     builder.add_edge(START, "llm")
@@ -137,4 +170,7 @@ def create_agent_graph(
     builder.add_edge("max_iterations", END)
 
     return builder.compile()
+
+
+graph = create_agent_graph()
 

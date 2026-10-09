@@ -3,11 +3,14 @@ from uuid import uuid4
 from app.services.document_service import split_document
 from app.services.embedding_service import EmbeddingService
 from app.services.vector_store_service import VectorStoreService
+from app.config import RAG_DISTANCE_THRESHOLD, RAG_RETRIEVAL_TOP_K, RAG_FINAL_TOP_K
+from app.services.reranker_service import RerankerService
 
 class RAGService:
     def __init__(self):
         self.embedding_service = EmbeddingService()
         self.vector_store = VectorStoreService()
+        self.reranker_service = RerankerService()
     
     async def index_document(
         self,
@@ -49,16 +52,29 @@ class RAGService:
     async def retrieve(
         self,
         query: str,
-        top_k: int = 3,
+        top_k: int | None = None,
     ) -> list[dict]:
         if not query.strip():
             raise ValueError("Query cannot be empty")
         
         query_embedding = await self.embedding_service.embed_query(query)
+        retrieval_top_k = top_k or RAG_RETRIEVAL_TOP_K
 
         results = self.vector_store.search(
             query_embedding=query_embedding,
-            top_k=top_k
+            top_k=retrieval_top_k
         )
 
-        return results
+        filtered_results = [
+            result
+            for result in results
+            if result["distance"] <= RAG_DISTANCE_THRESHOLD
+        ]
+
+        reranked_results = self.reranker_service.rerank(
+            query=query,
+            documents=filtered_results,
+            top_k=RAG_FINAL_TOP_K
+        )
+
+        return reranked_results
