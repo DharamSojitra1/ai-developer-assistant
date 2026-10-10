@@ -1,8 +1,10 @@
 import torch
+import logging
 from sentence_transformers import CrossEncoder
 
 from app.config import RERANKER_MODEL_NAME, RERANKER_DEVICE
 
+logger = logging.getLogger(__name__)
 
 class RerankerService:
     def __init__(
@@ -44,6 +46,9 @@ class RerankerService:
         if not query.strip():
             raise ValueError("Query cannot be empty")
 
+        if top_k <= 0:
+            raise ValueError("top_k must be greater than zero")
+
         if not documents:
             return []
 
@@ -52,11 +57,27 @@ class RerankerService:
             for document in documents
         ]
 
-        scores = self.model.predict(
-            pairs,
-            batch_size=8,
-            show_progress_bar=False,
-        )
+        try:
+            scores = self.model.predict(
+                pairs,
+                batch_size=8,
+                show_progress_bar=False,
+            )
+        except Exception:
+            logger.exception(
+                "Reranker inference failed",
+                extra={
+                    "document_count": len(documents),
+                    "device": str(self.model.model.device),
+                },
+            )
+            raise
+
+        if len(scores) != len(documents):
+            raise RuntimeError(
+                "Reranker returned a different number of scores "
+                "than input documents."
+            )
 
         ranked_documents = []
 

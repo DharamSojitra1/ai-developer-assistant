@@ -2,6 +2,7 @@ from pymongo import AsyncMongoClient, ReturnDocument
 from app.config import MONGODB_URI, MONGODB_DATABASE
 from datetime import datetime, timezone
 from pymongo.errors import DuplicateKeyError
+from bson import ObjectId
 
 client = AsyncMongoClient(MONGODB_URI)
 database = client[MONGODB_DATABASE]
@@ -80,6 +81,15 @@ async def get_user_by_email(email: str):
     return await database["users"].find_one(
         {"email": email.lower()}
     )
+
+async def get_user_by_id(user_id: str):
+    if not ObjectId.is_valid(user_id):
+        return None
+
+    return await database["users"].find_one(
+        {"_id": ObjectId(user_id)}
+    )
+
 
 async def save_refresh_token(
     user_id: str,

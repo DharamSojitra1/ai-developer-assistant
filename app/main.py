@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from app.limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import FRONTEND_URL, DEBUG
-from app.exceptions import app_exception_handler
+from app.exceptions import app_exception_handler, unhandled_exception_handler
 from app.custom_exceptions import AppException
 from app.middleware import request_id_middleware
 from contextlib import asynccontextmanager
@@ -84,7 +84,10 @@ app.add_exception_handler(
     RateLimitExceeded,
     _rate_limit_exceeded_handler
 ) 
-
+app.add_exception_handler(
+    Exception,
+    unhandled_exception_handler
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL],

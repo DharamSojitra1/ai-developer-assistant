@@ -118,3 +118,36 @@ def test_logout(client):
     )
 
     assert second_response.status_code == 401
+
+
+def test_protected_route_rejects_invalid_user_id_in_token(client):
+    from app.security import create_access_token
+
+    invalid_user_id = "not-a-valid-mongodb-id"
+    token = create_access_token(invalid_user_id)
+
+    response = client.post(
+        "/api/chat/chat",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"message": "Hello"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "User no longer exists"
+
+
+def test_protected_route_rejects_deleted_user(client):
+    from app.security import create_access_token
+
+    # A valid ObjectId-shaped ID that does not belong to a user.
+    deleted_user_id = "507f1f77bcf86cd799439011"
+    token = create_access_token(deleted_user_id)
+
+    response = client.post(
+        "/api/chat/chat",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"message": "Hello"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "User no longer exists"

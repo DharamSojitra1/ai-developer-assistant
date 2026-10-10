@@ -52,3 +52,7 @@ RERANKER_DEVICE = os.getenv(
     "RERANKER_DEVICE",
     "auto",
 )
+
+RERANKER_SCORE_THRESHOLD = float(
+    os.getenv("RERANKER_SCORE_THRESHOLD", "0.0")
+)
