@@ -1,117 +1,22 @@
 import pytest
 
 from app.services.rag_service import RAGService
-from tests.test_rag_mrr import calculate_mrr_at_k
+from evals.metrics import calculate_hit_rate, calculate_mrr_at_k
+from evals.schema import load_rag_cases
 
 
 RAG_EVALUATION_DATASET = [
-    {
-        "query": "What is Generative AI?",
-        "expected_document_id": "gen-ai-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "What kind of content can Generative AI generate?",
-        "expected_document_id": "gen-ai-basics",
-        "should_retrieve": True,
-    },
-    {
-        # The knowledge base mentions foundation models but does not
-        # define them. This query asks about models used by Generative AI.
-        "query": "What kind of models does Generative AI commonly use?",
-        "expected_document_id": "gen-ai-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "What is Python?",
-        "expected_document_id": "python-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "What is FastAPI?",
-        "expected_document_id": "fastapi-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "What is the history of quantum computing?",
-        "expected_document_id": None,
-        "should_retrieve": False,
-    },
-    {
-        "query": "Which AI technology can create new text, images, audio, video, and code?",
-        "expected_document_id": "gen-ai-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "What programming language is known for readable syntax and used in AI?",
-        "expected_document_id": "python-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "Which framework provides automatic OpenAPI documentation and async API handling?",
-        "expected_document_id": "fastapi-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "Which framework is used to build APIs with Python?",
-        "expected_document_id": "fastapi-basics",
-        "should_retrieve": True,
-    },
-    {
-        "query": "How do I configure a quantum processor using FastAPI?",
-        "expected_document_id": None,
-        "should_retrieve": False,
-    },
-    {
-        "query": "How do I deploy a FastAPI application to Kubernetes?",
-        "expected_document_id": None,
-        "should_retrieve": False,
-    },
-    {
-        "query": "How do I train a neural network for image recognition using Python?",
-        "expected_document_id": None,
-        "should_retrieve": False,
-    },
-    {
-        "query": "How can I use Generative AI to compose a song?",
-        "expected_document_id": None,
-        "should_retrieve": False,
-    },
+    case.model_dump()
+    for case in load_rag_cases()
 ]
 
 
-def calculate_hit_rate(results, evaluation_cases):
-    """Calculate the fraction of positive queries retrieving the expected document."""
-    hits = 0
-    total_expected = 0
-
-    for result, case in zip(results, evaluation_cases):
-        expected_document_id = case["expected_document_id"]
-
-        # Negative queries are excluded from hit-rate calculation.
-        if expected_document_id is None:
-            continue
-
-        total_expected += 1
-
-        document_ids = {
-            item["metadata"]["document_id"]
-            for item in result
-        }
-
-        if expected_document_id in document_ids:
-            hits += 1
-
-    if total_expected == 0:
-        return 0.0
-
-    return hits / total_expected
-
-
+@pytest.mark.live
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "evaluation_case",
     RAG_EVALUATION_DATASET,
+    ids=[case["id"] for case in RAG_EVALUATION_DATASET],
 )
 async def test_rag_retrieval_evaluation(evaluation_case):
     service = RAGService()
@@ -121,7 +26,7 @@ async def test_rag_retrieval_evaluation(evaluation_case):
         top_k=3,
     )
 
-    if evaluation_case["should_retrieve"]:
+    if evaluation_case["expected_document_id"] is not None:
         assert results, (
             f"Expected documents for query: {evaluation_case['query']}"
         )
@@ -184,6 +89,7 @@ def test_rag_hit_rate_calculation():
     assert hit_rate == 1.0
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_rag_evaluation_hit_rate():
     service = RAGService()
@@ -204,6 +110,7 @@ async def test_rag_evaluation_hit_rate():
     assert hit_rate == pytest.approx(1.0)
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_rag_negative_query_behavior():
     service = RAGService()
@@ -247,6 +154,7 @@ async def test_rag_negative_query_behavior():
     )
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_rag_evaluation_mrr():
     service = RAGService()
@@ -272,6 +180,7 @@ async def test_rag_evaluation_mrr():
     )
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_rag_combined_evaluation_report():
     service = RAGService()

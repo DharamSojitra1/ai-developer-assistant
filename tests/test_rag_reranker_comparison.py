@@ -6,11 +6,10 @@ from app.config import (
     RAG_RETRIEVAL_TOP_K,
     RAG_FINAL_TOP_K,
 )
-from tests.test_rag_evaluation import (
-    RAG_EVALUATION_DATASET,
-    calculate_hit_rate,
-)
-from tests.test_rag_mrr import calculate_mrr
+from evals.metrics import calculate_hit_rate, calculate_mrr
+from tests.test_rag_evaluation import RAG_EVALUATION_DATASET
+
+pytestmark = pytest.mark.live
 
 
 @pytest.mark.asyncio

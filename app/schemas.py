@@ -1,12 +1,19 @@
 from pydantic import EmailStr
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime
+from typing import Literal
+
+from app.config import CHAT_MAX_MESSAGE_CHARS, RAG_MAX_TEXT_CHARS
+
+MAX_RESPONSE_TOKENS = 4096
+MAX_SEARCH_QUERY_CHARS = 500
 
 
 class ChatRequest(BaseModel):
     message: str = Field(
         ...,
         min_length=1,
+        max_length=CHAT_MAX_MESSAGE_CHARS,
         json_schema_extra={"example": "hello"}
     )
 
@@ -20,6 +27,7 @@ class ChatRequest(BaseModel):
     max_tokens: int = Field(
         1024,
         gt=0,
+        le=MAX_RESPONSE_TOKENS,
         json_schema_extra={"example": 1024}
     )
 
@@ -47,6 +55,10 @@ class ChatHistoryResponse(BaseModel):
     history: list[ChatHistoryItem]
 
 
+class DeleteHistoryResponse(BaseModel):
+    deleted: int
+
+
 class UserRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
@@ -64,23 +76,48 @@ class TokenResponse(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
+DocumentType = Literal["text", "markdown", "pdf"]
+Visibility = Literal["shared", "private"]
+
+
 class IndexDocumentRequest(BaseModel):
-    text: str = Field(min_length=1)
-    document_id: str | None = None
+    text: str = Field(min_length=1, max_length=RAG_MAX_TEXT_CHARS)
+    document_id: str | None = Field(default=None, min_length=1, max_length=128)
+    source: str = Field(default="api", min_length=1, max_length=255)
+    doc_type: Literal["text", "markdown"] = "text"
+    visibility: Visibility = Field(
+        default="private",
+        description="Shared documents are visible to every user; only admins can add them.",
+    )
 
 
 class IndexDocumentResponse(BaseModel):
     document_id: str
+    status: Literal["indexed", "unchanged"] = Field(
+        description="`unchanged` when identical content was already indexed under this ID.",
+    )
     chunks_indexed: int
+    chunks_embedded: int = Field(
+        description="Chunks sent to the embedding model; the rest reused stored embeddings.",
+    )
+    source: str
+    doc_type: DocumentType
+    visibility: Visibility
 
 class SearchRequest(BaseModel):
-    query: str = Field(min_length=1)
+    query: str = Field(min_length=1, max_length=MAX_SEARCH_QUERY_CHARS)
     top_k: int = Field(default=3, ge=1, le=20)
+    source: str | None = Field(default=None, min_length=1, max_length=255)
+    doc_type: DocumentType | None = None
 
 class SearchResult(BaseModel):
     id: str
     text: str
-    distance: float
+    distance: float | None = Field(
+        description="Vector distance; null for keyword-only matches.",
+    )
+    keyword_score: float | None = None
+    rerank_score: float | None = None
     metadata: dict
 
 class SearchResponse(BaseModel):
@@ -91,6 +128,29 @@ class SourceReference(BaseModel):
     text: str
 
 
+AgentRoute = Literal[
+    "knowledge_base",
+    "calculation",
+    "chat",
+    "multi_agent",
+    "general",
+]
+
+AgentRunStatus = Literal["completed", "awaiting_approval"]
+
+
+class ApprovalRequest(BaseModel):
+    """A sensitive action the agent wants to take, waiting for the user."""
+
+    tool_call_id: str
+    action: str
+    document_id: str
+    source: str | None = None
+    found: bool = Field(
+        description="Whether the document exists and belongs to the user.",
+    )
+
+
 class ChatResponse(BaseModel):
     response: str = Field(
         ...,
@@ -99,3 +159,20 @@ class ChatResponse(BaseModel):
     sources: list[SourceReference] = Field(
         default_factory=list
     )
+
+
+class AgentChatResponse(ChatResponse):
+    run_id: str
+    route: AgentRoute | None = None
+    status: AgentRunStatus
+    approval: list[ApprovalRequest] | None = Field(
+        default=None,
+        description=(
+            "Actions awaiting approval when status is awaiting_approval; "
+            "answer them with POST /api/agent/runs/{run_id}/approval."
+        ),
+    )
+
+
+class ApprovalDecision(BaseModel):
+    approved: bool

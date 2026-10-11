@@ -1,0 +1,14 @@
+{"id": "genai-definition", "query": "What is Generative AI?", "expected_document_id": "gen-ai-basics", "tags": ["positive"]}
+{"id": "genai-outputs", "query": "What kind of content can Generative AI generate?", "expected_document_id": "gen-ai-basics", "tags": ["positive"]}
+{"id": "genai-models", "query": "What kind of models does Generative AI commonly use?", "expected_document_id": "gen-ai-basics", "note": "The knowledge base mentions foundation models but does not define them.", "tags": ["positive"]}
+{"id": "python-definition", "query": "What is Python?", "expected_document_id": "python-basics", "tags": ["positive"]}
+{"id": "fastapi-definition", "query": "What is FastAPI?", "expected_document_id": "fastapi-basics", "tags": ["positive"]}
+{"id": "quantum-history", "query": "What is the history of quantum computing?", "expected_document_id": null, "tags": ["negative"]}
+{"id": "genai-paraphrase", "query": "Which AI technology can create new text, images, audio, video, and code?", "expected_document_id": "gen-ai-basics", "tags": ["positive", "paraphrase"]}
+{"id": "python-paraphrase", "query": "What programming language is known for readable syntax and used in AI?", "expected_document_id": "python-basics", "tags": ["positive", "paraphrase"]}
+{"id": "fastapi-features", "query": "Which framework provides automatic OpenAPI documentation and async API handling?", "expected_document_id": "fastapi-basics", "tags": ["positive", "paraphrase"]}
+{"id": "fastapi-python-apis", "query": "Which framework is used to build APIs with Python?", "expected_document_id": "fastapi-basics", "tags": ["positive", "paraphrase"]}
+{"id": "quantum-fastapi", "query": "How do I configure a quantum processor using FastAPI?", "expected_document_id": null, "tags": ["negative", "keyword-overlap"]}
+{"id": "fastapi-kubernetes", "query": "How do I deploy a FastAPI application to Kubernetes?", "expected_document_id": null, "tags": ["negative", "keyword-overlap"]}
+{"id": "python-image-training", "query": "How do I train a neural network for image recognition using Python?", "expected_document_id": null, "tags": ["negative", "keyword-overlap"]}
+{"id": "genai-song", "query": "How can I use Generative AI to compose a song?", "expected_document_id": null, "tags": ["negative", "keyword-overlap"]}

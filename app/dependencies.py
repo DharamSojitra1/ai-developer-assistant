@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jwt import InvalidTokenError
 from app.security import decode_token
 from app.database import get_user_by_id
+from app.utils.request_metrics import bind_request_user
 
 bearer_scheme = HTTPBearer()
 
@@ -44,4 +45,20 @@ async def get_current_user(
             detail="User no longer exists",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return {"user_id": user_id}
+
+    bind_request_user(user_id)
+
+    return {
+        "user_id": user_id,
+        "role": user.get("role", "user"),
+    }
+
+async def require_admin(
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user

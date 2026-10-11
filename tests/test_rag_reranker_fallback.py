@@ -1,10 +1,14 @@
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.services.rag_service import RAGService
 
 
 @pytest.mark.asyncio
-async def test_rag_falls_back_when_reranker_fails(monkeypatch):
+async def test_rag_returns_no_results_when_reranker_fails(monkeypatch):
+    # Unreranked context is never trusted, so a reranker outage yields no
+    # sources rather than possibly irrelevant ones.
     service = RAGService()
 
     retrieved_documents = [
@@ -37,7 +41,7 @@ async def test_rag_falls_back_when_reranker_fails(monkeypatch):
     async def mock_embed_query(query):
         return [0.1, 0.2, 0.3]
 
-    def mock_search(query_embedding, top_k):
+    def mock_search(query_embedding, top_k, where=None):
         return retrieved_documents
 
     def mock_rerank(query, documents, top_k):
@@ -59,22 +63,10 @@ async def test_rag_falls_back_when_reranker_fails(monkeypatch):
         mock_rerank,
     )
 
+    evaluate = AsyncMock()
+    monkeypatch.setattr(service.answerability_service, "evaluate", evaluate)
+
     results = await service.retrieve("What is FastAPI?")
 
-    assert len(results) == 3
-    assert all(
-        result["distance"] <= 0.35
-        for result in results
-    )
-    assert all(
-        "rerank_score" not in result
-        for result in results
-    )
-    assert [
-        result["metadata"]["document_id"]
-        for result in results
-    ] == [
-        "fastapi-basics",
-        "python-basics",
-        "gen-ai-basics",
-    ]
+    assert results == []
+    evaluate.assert_not_awaited()

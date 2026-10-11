@@ -1,0 +1,20 @@
+{"id": "access-expiry", "query": "How long is an access token valid?", "document_id": "auth", "answer": "Access tokens expire after 15 minutes", "tags": ["paraphrase"]}
+{"id": "refresh-rotation", "query": "What happens to the old refresh token when I refresh?", "document_id": "auth", "answer": "the old refresh token is revoked immediately", "tags": ["paraphrase"]}
+{"id": "password-hashing", "query": "How are passwords stored?", "document_id": "auth", "answer": "hashed with Argon2", "tags": ["paraphrase"]}
+{"id": "logout-access", "query": "Does an access token still work after I log out?", "document_id": "auth", "answer": "an access token keeps working until it expires even after logout", "tags": ["paraphrase"]}
+{"id": "become-admin", "query": "How does a user become an administrator?", "document_id": "auth", "answer": "promoted with the `promote_admin` script", "tags": ["paraphrase"]}
+{"id": "container-user", "query": "Which user does the Docker container run as?", "document_id": "deployment", "answer": "non-root user named `app`", "tags": ["paraphrase"]}
+{"id": "chroma-volume", "query": "chroma-data volume", "document_id": "deployment", "answer": "mounted as a separate volume named `chroma-data`", "tags": ["keyword"]}
+{"id": "healthcheck-interval", "query": "How often is the health endpoint polled and when is the container unhealthy?", "document_id": "deployment", "answer": "unhealthy after 3 consecutive failures", "tags": ["paraphrase"]}
+{"id": "mock-mode", "query": "MOCK_MODE production", "document_id": "deployment", "answer": "Set MOCK_MODE to false in production", "tags": ["keyword"]}
+{"id": "scale-replicas", "query": "Can I run several API replicas against the same vector store?", "document_id": "deployment", "answer": "run a single API replica per `chroma_db` volume", "tags": ["paraphrase"]}
+{"id": "distance-cutoff", "query": "Which vector search candidates are thrown away?", "document_id": "retrieval", "answer": "distance above 0.35 are discarded", "tags": ["paraphrase"]}
+{"id": "why-bm25", "query": "Why is keyword search used alongside embeddings?", "document_id": "retrieval", "answer": "catches exact terms that embeddings handle poorly", "tags": ["paraphrase"]}
+{"id": "reranker-failure", "query": "What does retrieval return when the reranker breaks?", "document_id": "retrieval", "answer": "retrieval returns no context", "tags": ["paraphrase"]}
+{"id": "duplicate-409", "query": "What happens if I upload the same document under a new ID?", "document_id": "retrieval", "answer": "rejected with HTTP 409", "tags": ["paraphrase"]}
+{"id": "rate-limit-code", "query": "RATE_LIMIT_EXCEEDED", "document_id": "operations", "answer": "returns HTTP 429 with the error code RATE_LIMIT_EXCEEDED", "tags": ["keyword"]}
+{"id": "max-iterations", "query": "When does an agent run stop calling tools?", "document_id": "operations", "answer": "stops after 5 tool-calling iterations", "tags": ["paraphrase"]}
+{"id": "db-unavailable", "query": "DATABASE_UNAVAILABLE 503", "document_id": "operations", "answer": "HTTP 503 with the error code DATABASE_UNAVAILABLE", "tags": ["keyword"]}
+{"id": "error-leak", "query": "Are exception details shown to API clients?", "document_id": "operations", "answer": "never includes the exception message", "tags": ["paraphrase"]}
+{"id": "agent-step-log", "query": "How can I tell which step of an agent run failed?", "document_id": "operations", "answer": "Failed agent runs log the step that failed", "tags": ["paraphrase"]}
+{"id": "tool-timeout", "query": "TOOL_TIMEOUT_SECONDS", "document_id": "operations", "answer": "Each tool call times out after 30 seconds", "tags": ["keyword"]}

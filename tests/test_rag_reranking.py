@@ -2,6 +2,10 @@ import pytest
 
 from app.services.rag_service import RAGService
 
+# Embedding, search, and rerank are faked, but the answerability check
+# still calls the real LLM.
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_rag_retrieval_uses_reranker(monkeypatch):

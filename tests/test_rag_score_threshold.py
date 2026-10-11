@@ -18,6 +18,7 @@ class FakeVectorStore:
         self,
         query_embedding: list[float],
         top_k: int = 3,
+        where: dict | None = None,
     ) -> list[dict]:
         return self.documents[:top_k]
 
@@ -82,6 +83,7 @@ def make_rag_service(
     service.answerability_service = FakeAnswerabilityService(
         is_answerable=is_answerable,
     )
+    service.hybrid_search = False
     return service
 
 

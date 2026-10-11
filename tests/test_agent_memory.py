@@ -6,6 +6,8 @@ from app import database as db
 from app.agents.agent_service import build_agent_messages
 from app.agents.calculator_agent import graph
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_agent_with_memory(async_test_db):

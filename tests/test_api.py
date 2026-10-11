@@ -17,7 +17,8 @@ def test_chat_with_valid_api_key(client, auth_headers):
 
     assert response.status_code == 200
     assert response.json() == {
-        "response": "Mock response: Hello"
+        "response": "Mock response: Hello",
+        "sources": [],
     }
 
 

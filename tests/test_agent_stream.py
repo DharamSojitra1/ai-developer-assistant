@@ -5,6 +5,8 @@ import pytest
 
 from app.agents.agent_service import stream_agent_response
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_agent_stream_text(async_test_db):

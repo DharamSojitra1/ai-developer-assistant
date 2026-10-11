@@ -1,0 +1,38 @@
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-developer-assistant-api
+    env_file:
+      - .env
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: ai_developer_assistant
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - chroma_data:/app/chroma_db
+      - app_state:/app/state
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:8
+    container_name: ai-developer-assistant-mongodb
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  chroma_data:
+  app_state:

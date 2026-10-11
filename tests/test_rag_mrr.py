@@ -1,36 +1,6 @@
 import pytest
 
-def calculate_mrr(results, evaluation_cases):
-    reciprocal_ranks = []
-
-    for retrieved_documents, case in zip(
-        results,
-        evaluation_cases,
-    ):
-        expected_document_id = case["expected_document_id"]
-
-        if expected_document_id is None:
-            continue
-
-        reciprocal_rank = 0.0
-
-        for rank, document in enumerate(
-            retrieved_documents,
-            start=1,
-        ):
-            if (
-                document["metadata"]["document_id"]
-                == expected_document_id
-            ):
-                reciprocal_rank = 1.0 / rank
-                break
-
-        reciprocal_ranks.append(reciprocal_rank)
-
-    if not reciprocal_ranks:
-        return 0.0
-
-    return sum(reciprocal_ranks) / len(reciprocal_ranks)
+from evals.metrics import calculate_mrr, calculate_mrr_at_k
 
 
 def test_mrr_when_expected_documents_are_first():
@@ -89,22 +59,6 @@ def test_mrr_returns_zero_when_no_cases_are_evaluable():
     results = [[]]
 
     assert calculate_mrr(results, cases) == 0.0
-
-
-def calculate_mrr_at_k(results, evaluation_cases, k: int = 3):
-    if k <= 0:
-        raise ValueError("k must be greater than zero")
-
-    limited_results = [
-        retrieved_documents[:k]
-        for retrieved_documents in results
-    ]
-
-    return calculate_mrr(
-        limited_results,
-        evaluation_cases,
-    )
-
 
 
 def test_mrr_at_k_ignores_documents_beyond_k():

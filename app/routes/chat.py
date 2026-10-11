@@ -1,13 +1,20 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import StreamingResponse
-from app.schemas import ChatRequest,ChatResponse, ChatHistoryResponse
+from pymongo.errors import ConnectionFailure
+from app.schemas import (
+    ChatHistoryResponse,
+    ChatRequest,
+    ChatResponse,
+    DeleteHistoryResponse,
+)
 from app.services.chat_service import generate_response, generate_streaming_response
 import logging
 import time
 from app.limiter import limiter
 from app.dependencies import get_current_user
-from app.database import save_chat_history, get_chat_history
-from app.config import GROQ_MODEL_NAME
+from app.database import delete_chat_history, save_chat_history, get_chat_history
+from app.config import GROQ_MODEL_NAME, RATE_LIMIT_CHAT
+from app.guards.injection import screen_input
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +27,7 @@ router = APIRouter()
     description="Generate an AI response. Requires a valid access token.",
     tags=["Chat"],
 )
-@limiter.limit("5/minute")
+@limiter.limit(RATE_LIMIT_CHAT)
 async def chat(
     request: Request,
     body: ChatRequest,
@@ -33,6 +40,7 @@ async def chat(
             "Chat request started",
             extra={"request_id": request_id},
         )
+        screen_input(body.message, "chat_message")
 
         start_time = time.perf_counter()
 
@@ -58,6 +66,10 @@ async def chat(
         )
 
         return ChatResponse(response=answer, sources=sources)
+
+    except ConnectionFailure:
+        # Let the app-level handler answer 503 instead of "AI service" 502.
+        raise
 
     except TimeoutError:
         logger.exception(
@@ -85,13 +97,14 @@ async def chat(
     description="Stream an AI response token by token. Requires a valid access token.",
     tags=["Chat"],
 )
-@limiter.limit("5/minute")
+@limiter.limit(RATE_LIMIT_CHAT)
 async def chat_stream(
     request: Request,
     body: ChatRequest,
     current_user: dict = Depends(get_current_user),
 ):
     full_response = []
+    screen_input(body.message, "chat_message")
 
     async def generate():
         async for chunk in generate_streaming_response(
@@ -138,3 +151,23 @@ async def chat_history(
         "count": len(history),
         "history": history,
     }
+
+
+@router.delete(
+    "/history",
+    response_model=DeleteHistoryResponse,
+    summary="Delete my chat history",
+    description=(
+        "Permanently delete all of the caller's chat history. History is "
+        "also deleted automatically after the retention period."
+    ),
+    tags=["Chat"],
+)
+async def delete_history(
+    current_user: dict = Depends(get_current_user),
+):
+    deleted = await delete_chat_history(current_user["user_id"])
+
+    logger.info("Chat history deleted", extra={"deleted": deleted})
+
+    return {"deleted": deleted}

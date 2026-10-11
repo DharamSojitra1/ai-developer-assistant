@@ -1,10 +1,11 @@
 from app.schemas import RefreshTokenRequest
 import email
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from app.schemas import UserRegisterRequest, UserResponse, TokenResponse
 from app.database import create_user, get_user_by_email, save_refresh_token, revoke_refresh_token, save_refresh_token
 from app.security import hash_password, verify_password, create_access_token, create_refresh_token, hash_refresh_token, decode_token
-from app.config import REFRESH_TOKEN_EXPIRE_DAYS
+from app.config import RATE_LIMIT_AUTH, REFRESH_TOKEN_EXPIRE_DAYS
+from app.limiter import ip_key, limiter
 from datetime import datetime, timedelta, timezone
 
 
@@ -15,7 +16,8 @@ router = APIRouter()
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED
 )
-async def register_user(body: UserRegisterRequest):
+@limiter.limit(RATE_LIMIT_AUTH, key_func=ip_key)
+async def register_user(request: Request, body: UserRegisterRequest):
     email = str(body.email).lower()
 
     hashed_password = hash_password(body.password)
@@ -37,7 +39,8 @@ async def register_user(body: UserRegisterRequest):
     "/login",
     response_model=TokenResponse
 )
-async def login_user(body: UserRegisterRequest):
+@limiter.limit(RATE_LIMIT_AUTH, key_func=ip_key)
+async def login_user(request: Request, body: UserRegisterRequest):
     email = str(body.email).lower()
 
     user = await get_user_by_email(email)
@@ -76,7 +79,8 @@ async def login_user(body: UserRegisterRequest):
     "/refresh",
     response_model=TokenResponse
 )
-async def refresh_access_token(body: RefreshTokenRequest):
+@limiter.limit(RATE_LIMIT_AUTH, key_func=ip_key)
+async def refresh_access_token(request: Request, body: RefreshTokenRequest):
     try:
         payload = decode_token(body.refresh_token)
     except Exception:
@@ -88,7 +92,7 @@ async def refresh_access_token(body: RefreshTokenRequest):
     if payload.get("type") != "refresh":
         raise HTTPException(
             status_code= status.HTTP_401_UNAUTHORIZED,
-            detail="Invail refresh token",
+            detail="Invalid refresh token",
         )
 
     user_id = payload.get("sub")
@@ -96,7 +100,7 @@ async def refresh_access_token(body: RefreshTokenRequest):
     if not user_id:
         raise HTTPException(
             status_code= status.HTTP_401_UNAUTHORIZED,
-            detail = "Invaild refresh token"
+            detail = "Invalid refresh token"
         )
 
     old_token_hash = hash_refresh_token(body.refresh_token)
@@ -105,7 +109,7 @@ async def refresh_access_token(body: RefreshTokenRequest):
     if not old_token or old_token["user_id"] != user_id:
         raise HTTPException(
             status_code = status.HTTP_401_UNAUTHORIZED,
-            detail = "Refresh token is revoked or invaild"
+            detail = "Refresh token is revoked or invalid"
         )
 
     new_access_token = create_access_token(user_id)
@@ -128,7 +132,8 @@ async def refresh_access_token(body: RefreshTokenRequest):
     }
 
 @router.post("/logout")
-async def logout_user(body: RefreshTokenRequest):
+@limiter.limit(RATE_LIMIT_AUTH, key_func=ip_key)
+async def logout_user(request: Request, body: RefreshTokenRequest):
     try:
         payload = decode_token(body.refresh_token)
     except Exception:

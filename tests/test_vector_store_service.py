@@ -76,3 +76,45 @@ def test_invalid_top_k(vector_store):
             query_embedding=[1.0, 0.0, 0.0],
             top_k=0,
         )
+
+def test_mismatched_metadata_lengths(vector_store):
+    with pytest.raises(
+        ValueError,
+        match="Chunks and metadatas must have equal lengths",
+    ):
+        vector_store.add_chunks(
+            chunks=["Chunk 1", "Chunk 2"],
+            embeddings=[
+                [0.1, 0.2, 0.3],
+                [0.4, 0.5, 0.6],
+            ],
+            ids=["doc1_0", "doc1_1"],
+            metadatas=[
+                {"document_id": "doc1", "chunk_index": 0},
+            ],
+        )
+
+def test_mismatched_embedding_dimensions(vector_store):
+    with pytest.raises(
+        ValueError,
+        match="All embeddings must have the same dimension",
+    ):
+        vector_store.add_chunks(
+            chunks=["Chunk 1", "Chunk 2"],
+            embeddings=[
+                [0.1, 0.2, 0.3],
+                [0.4, 0.5],
+            ],
+            ids=["doc1_0", "doc1_1"],
+        )
+
+def test_non_finite_embedding_values(vector_store):
+    with pytest.raises(
+        ValueError,
+        match="Embeddings must contain only finite values",
+    ):
+        vector_store.add_chunks(
+            chunks=["Test chunk"],
+            embeddings=[[0.1, float("nan"), 0.3]],
+            ids=["doc1_0"],
+        )

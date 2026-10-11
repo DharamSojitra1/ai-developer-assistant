@@ -2,6 +2,8 @@ import pytest
 
 from app.agents.calculator_agent import create_agent_graph
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_agent_state_contains_rag_sources():

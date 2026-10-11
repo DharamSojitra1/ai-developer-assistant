@@ -20,8 +20,12 @@ def test_agent_chat_success(client, auth_headers):
         return_value={
             "response": "125 * 4 = 500",
             "sources": [],
+            "run_id": "run-1",
+            "route": "calculation",
+            "status": "completed",
+            "approval": None,
         },
-    ):
+    ) as mock_generate:
         response = client.post(
             "/api/agent/chat",
             json={
@@ -38,6 +42,11 @@ def test_agent_chat_success(client, auth_headers):
 
     assert data["response"] == "125 * 4 = 500"
     assert data["sources"] == []
+    assert data["run_id"] == "run-1"
+    assert data["route"] == "calculation"
+    assert data["status"] == "completed"
+
+    assert mock_generate.await_args.kwargs["role"] == "user"
 
 
 def test_agent_chat_failure(client, auth_headers):

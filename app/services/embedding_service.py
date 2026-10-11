@@ -1,9 +1,13 @@
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+from app.config import EMBEDDING_MODEL_NAME
+
+
 class EmbeddingService:
-    def __init__(self):
+    def __init__(self, model_name: str = EMBEDDING_MODEL_NAME):
+        self.model_name = model_name
         self.model = GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-001"
+            model=model_name
         )
     
     async def embed_documents(

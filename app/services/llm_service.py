@@ -21,6 +21,11 @@ from groq import (
     RateLimitError,
 )
 
+from app.agents.prompts import with_security_rules
+from app.utils.llm_logging import install_llm_logging
+
+install_llm_logging()
+
 
 def create_chat_model(
     temperature: float,
@@ -62,7 +67,7 @@ async def generate_ai_response(
     prompt_template = ChatPromptTemplate.from_messages([
     (
         "system",
-        """
+        with_security_rules("""
         You are an AI Developer Assistant.
 
         Answer the user's question using the provided context
@@ -73,7 +78,7 @@ async def generate_ai_response(
 
         If the context does not contain enough information,
         clearly say so. Do not invent facts.
-        """,
+        """),
     ),
     (
         "human",
@@ -107,7 +112,7 @@ def create_rag_chain(
         [
             (
                 "system",
-                """
+                with_security_rules("""
                 You are an AI Developer Assistant.
 
                 Answer the user's question using the provided context
@@ -118,7 +123,7 @@ def create_rag_chain(
 
                 If the context does not contain enough information,
                 clearly say so. Do not invent facts.
-                """,
+                """),
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             (
@@ -148,7 +153,7 @@ def create_streaming_rag_chain(
         [
             (
                 "system",
-                """
+                with_security_rules("""
                 You are an AI Developer Assistant.
 
                 Answer the user's question using the provided context
@@ -159,7 +164,7 @@ def create_streaming_rag_chain(
 
                 If the context does not contain enough information,
                 clearly say so. Do not invent facts.
-                """,
+                """),
             ),
 
             MessagesPlaceholder(

@@ -1,7 +1,10 @@
 from pymongo import AsyncMongoClient, ReturnDocument
-from app.config import MONGODB_URI, MONGODB_DATABASE
-from datetime import datetime, timezone
-from pymongo.errors import DuplicateKeyError
+from app.config import CHAT_HISTORY_RETENTION_DAYS, MONGODB_URI, MONGODB_DATABASE
+from datetime import date, datetime, timedelta, timezone
+from pymongo.errors import DuplicateKeyError, OperationFailure
+
+# IndexOptionsConflict, IndexKeySpecsConflict
+INDEX_OPTIONS_CONFLICT_CODES = {85, 86}
 from bson import ObjectId
 
 client = AsyncMongoClient(MONGODB_URI)
@@ -64,6 +67,7 @@ async def create_user(email: str, hashed_password: str):
     document = {
         "email": email.lower(),
         "hashed_password": hashed_password,
+        "role": "user",
     }
 
     try:
@@ -72,6 +76,7 @@ async def create_user(email: str, hashed_password: str):
         return {
             "id": str(result.inserted_id),
             "email": document["email"],
+            "role": document["role"],
         }
 
     except DuplicateKeyError:
@@ -81,6 +86,17 @@ async def get_user_by_email(email: str):
     return await database["users"].find_one(
         {"email": email.lower()}
     )
+
+async def set_user_role(email: str, role: str) -> bool:
+    if role not in {"user", "admin"}:
+        raise ValueError("Invalid user role")
+
+    result = await database["users"].update_one(
+        {"email": email.lower()},
+        {"$set": {"role": role}},
+    )
+
+    return result.matched_count == 1
 
 async def get_user_by_id(user_id: str):
     if not ObjectId.is_valid(user_id):
@@ -140,3 +156,93 @@ async def get_recent_chat_history(
     history.reverse()
 
     return history
+
+
+CHAT_HISTORY_TTL_INDEX = "chat_history_retention"
+
+
+async def create_chat_history_indexes(
+    retention_days: int = CHAT_HISTORY_RETENTION_DAYS,
+):
+    """History lookup index, plus a TTL index that deletes old turns.
+
+    MongoDB refuses to change an existing index's options, so a changed
+    retention period is applied with `collMod` instead.
+    """
+    collection = database["chat_history"]
+    ttl_seconds = retention_days * 24 * 3600
+
+    await collection.create_index([("user_id", 1), ("created_at", -1)])
+
+    try:
+        await collection.create_index(
+            "created_at",
+            name=CHAT_HISTORY_TTL_INDEX,
+            expireAfterSeconds=ttl_seconds,
+        )
+    except OperationFailure as exc:
+        if exc.code not in INDEX_OPTIONS_CONFLICT_CODES:
+            raise
+
+        await database.command(
+            "collMod",
+            "chat_history",
+            index={
+                "name": CHAT_HISTORY_TTL_INDEX,
+                "expireAfterSeconds": ttl_seconds,
+            },
+        )
+
+
+async def delete_chat_history(user_id: str) -> int:
+    result = await database["chat_history"].delete_many({"user_id": user_id})
+    return result.deleted_count
+
+
+async def create_token_usage_index():
+    await database["token_usage"].create_index(
+        [("user_id", 1), ("date", 1)],
+        unique=True,
+    )
+
+
+async def record_token_usage(
+    user_id: str,
+    llm_calls: int,
+    input_tokens: int,
+    output_tokens: int,
+    day: date | None = None,
+):
+    """Add one request's LLM usage to the user's daily (UTC) totals."""
+    day = day or datetime.now(timezone.utc).date()
+
+    await database["token_usage"].update_one(
+        {"user_id": user_id, "date": day.isoformat()},
+        {
+            "$inc": {
+                "requests": 1,
+                "llm_calls": llm_calls,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            },
+            "$set": {"updated_at": datetime.now(timezone.utc)},
+        },
+        upsert=True,
+    )
+
+
+async def get_token_usage(user_id: str, days: int = 30) -> list[dict]:
+    """Daily usage for the last ``days`` UTC days (today included), newest first."""
+    since = datetime.now(timezone.utc).date() - timedelta(days=days - 1)
+
+    cursor = (
+        database["token_usage"]
+        .find(
+            {"user_id": user_id, "date": {"$gte": since.isoformat()}},
+            {"_id": 0, "user_id": 0, "updated_at": 0},
+        )
+        .sort("date", -1)
+    )
+
+    return await cursor.to_list(length=days)

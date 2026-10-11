@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 class FakeStreamingChain:
     async def astream(self, inputs):
@@ -96,10 +96,20 @@ def test_chat_stream_unauthorized(client):
 
     assert response.status_code == 401
 
-def test_chat_stream_with_mocked_llm(client, auth_headers):
+def test_chat_stream_with_mocked_llm(client, auth_headers, monkeypatch):
+    from app.services import chat_service
+
+    monkeypatch.setattr(chat_service, "MOCK_MODE", False)
+
+    rag_service = MagicMock()
+    rag_service.retrieve = AsyncMock(return_value=[])
+
     with patch(
         "app.services.chat_service.create_streaming_rag_chain",
         return_value=FakeStreamingChain(),
+    ), patch(
+        "app.services.chat_service.RAGService",
+        return_value=rag_service,
     ):
         response = client.post(
             "/api/chat/chat/stream",

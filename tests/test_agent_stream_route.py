@@ -18,7 +18,11 @@ def test_agent_stream_success(client, auth_headers):
     async def fake_stream_agent_response(
         user_id: str,
         message: str,
+        role: str,
+        **kwargs,
     ):
+        assert role == "user"
+
         yield "125 "
         yield "* "
         yield "4 = "
@@ -45,6 +49,8 @@ def test_agent_stream_saves_history(client, auth_headers):
     async def fake_stream_agent_response(
         user_id: str,
         message: str,
+        role: str,
+        **kwargs,
     ):
         yield "Hello "
         yield "from "
@@ -75,3 +81,45 @@ def test_agent_stream_saves_history(client, auth_headers):
     assert history["count"] == 1
     assert history["history"][0]["message"] == "Say hello"
     assert history["history"][0]["response"] == "Hello from agent"
+
+
+def test_agent_stream_sends_run_id_header(client, auth_headers):
+    seen = {}
+
+    async def fake_stream_agent_response(user_id, message, role, run_id, outcome):
+        seen["run_id"] = run_id
+        yield "ok"
+
+    with patch(
+        "app.routes.agent.stream_agent_response",
+        side_effect=fake_stream_agent_response,
+    ):
+        response = client.post(
+            "/api/agent/chat/stream",
+            json={"message": "Hi"},
+            headers=auth_headers,
+        )
+
+    assert response.headers["X-Agent-Run-ID"] == seen["run_id"]
+
+
+def test_paused_stream_does_not_save_history(client, auth_headers):
+    async def fake_stream_agent_response(user_id, message, role, run_id, outcome):
+        yield "Approval needed."
+        outcome["status"] = "awaiting_approval"
+
+    with patch(
+        "app.routes.agent.stream_agent_response",
+        side_effect=fake_stream_agent_response,
+    ):
+        response = client.post(
+            "/api/agent/chat/stream",
+            json={"message": "Delete my notes"},
+            headers=auth_headers,
+        )
+
+    assert response.text == "Approval needed."
+
+    history = client.get("/api/chat/history", headers=auth_headers).json()
+
+    assert history["count"] == 0

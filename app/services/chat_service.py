@@ -1,8 +1,49 @@
+import re
+
 from app.config import MOCK_MODE
 from app.services.llm_service import create_rag_chain, create_streaming_rag_chain
 from app.services.rag_service import RAGService
 from app.database import get_recent_chat_history
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+
+from app.guards.injection import screen_input
+
+_CLOSING_TAG = re.compile(r"</\s*document", re.IGNORECASE)
+
+
+def _escape_attribute(value: str) -> str:
+    return (
+        value.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def format_context(chunks: list[dict]) -> str:
+    """Wrap each retrieved chunk in its own <document> block.
+
+    Retrieved text is untrusted: a chunk containing `</document>` is escaped
+    so it cannot close its block and pose as instructions outside it.
+    """
+    blocks = []
+
+    for chunk in chunks:
+        document_id = str(
+            chunk.get("metadata", {}).get("document_id", "unknown")
+        )
+        screen_input(
+            chunk["text"],
+            "retrieved_document",
+            document_id=document_id,
+        )
+        text = _CLOSING_TAG.sub("&lt;/document", chunk["text"])
+        blocks.append(
+            f'<document id="{_escape_attribute(document_id)}">\n'
+            f"{text}\n</document>"
+        )
+
+    return "\n\n".join(blocks)
 
 
 async def generate_response(
@@ -25,13 +66,12 @@ async def generate_response(
         chunks = await rag_service.retrieve(
             query=inputs["message"],
             top_k=3,
+            user_id=inputs["user_id"],
         )
 
         retrieved_chunks.extend(chunks)
 
-        return "\n\n".join(
-            chunk["text"] for chunk in chunks
-        )
+        return format_context(chunks)
 
     async def retrieve_history(inputs: dict) -> list:
         history = await get_recent_chat_history(
@@ -98,14 +138,12 @@ async def generate_streaming_response(
     chunks = await rag_service.retrieve(
         query=message,
         top_k=3,
+        user_id=user_id,
     )
 
     retrieved_chunks.extend(chunks)
 
-    context = "\n\n".join(
-        chunk["text"]
-        for chunk in chunks
-    )
+    context = format_context(chunks)
 
     # Retrieve conversation history
     history = await get_recent_chat_history(

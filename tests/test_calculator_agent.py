@@ -1,3 +1,4 @@
+import json
 import re
 
 import pytest
@@ -14,11 +15,16 @@ def get_tool_messages(result, tool_name: str) -> list[ToolMessage]:
     ]
 
 
+def tool_payload(message: ToolMessage) -> dict:
+    return json.loads(message.content)
+
+
 def normalize_number_text(text: str) -> str:
     # LLMs may format numbers as "6000", "6,000" or with narrow spaces.
     return re.sub(r"[\s,]", "", text)
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_calculator_agent():
     result = await graph.ainvoke(
@@ -50,6 +56,7 @@ def test_calculator_agent_graph_structure():
     print(graph.get_graph().draw_ascii())
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_agent_selects_calculator():
     result = await graph.ainvoke(
@@ -66,9 +73,10 @@ async def test_agent_selects_calculator():
     tool_messages = get_tool_messages(result, "calculator")
 
     assert tool_messages
-    assert tool_messages[-1].content == "6000"
+    assert tool_payload(tool_messages[-1])["result"] == "6000"
 
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_agent_selects_text_analyzer():
     result = await graph.ainvoke(
@@ -85,9 +93,13 @@ async def test_agent_selects_text_analyzer():
     tool_messages = get_tool_messages(result, "analyze_text")
 
     assert tool_messages
-    assert "Characters:" in tool_messages[-1].content
-    assert "Words:" in tool_messages[-1].content
 
+    payload = tool_payload(tool_messages[-1])
+
+    assert payload["ok"] is True
+    assert {"characters", "words", "lines"} <= payload["result"].keys()
+
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_calculator_tool_error():
     result = await graph.ainvoke(
@@ -114,7 +126,11 @@ async def test_calculator_tool_error():
     tool_messages = get_tool_messages(result, "calculator")
 
     assert tool_messages
-    assert tool_messages[-1].content == "Error: Cannot divide by zero."
+    assert tool_payload(tool_messages[-1]) == {
+        "ok": False,
+        "result": None,
+        "error": "Cannot divide by zero.",
+    }
 
 
 def test_agent_stops_at_max_iterations():
@@ -137,6 +153,7 @@ def test_agent_stops_at_max_iterations():
 
     assert should_continue(state) == "max_iterations"
 
+@pytest.mark.live
 @pytest.mark.asyncio
 async def test_agent_selects_rag():
     result = await graph.ainvoke(
@@ -158,4 +175,10 @@ async def test_agent_selects_rag():
 
     assert tool_messages
 
-    assert "Generative AI" in tool_messages[-1].content
+    payload = tool_payload(tool_messages[-1])
+
+    assert payload["ok"] is True
+    assert any(
+        "Generative AI" in result["text"]
+        for result in payload["result"]["results"]
+    )

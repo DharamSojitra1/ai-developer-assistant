@@ -2,6 +2,8 @@ import pytest
 
 from app.services.rag_service import RAGService
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_relevant_query_returns_sources():

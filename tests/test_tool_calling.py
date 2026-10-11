@@ -1,3 +1,4 @@
+import json
 import re
 
 import pytest
@@ -6,6 +7,8 @@ from langchain_core.messages import ToolMessage
 
 from app.services.tool_llm_service import create_tool_llm
 from app.tools.calculator import calculator
+
+pytestmark = pytest.mark.live
 
 
 @pytest.mark.asyncio
@@ -29,7 +32,11 @@ async def test_complete_tool_calling_loop():
         tool_call["args"]
     )
 
-    assert tool_result == "6000"
+    assert json.loads(tool_result) == {
+        "ok": True,
+        "result": "6000",
+        "error": None,
+    }
 
     # 3. Create a ToolMessage
     tool_message = ToolMessage(

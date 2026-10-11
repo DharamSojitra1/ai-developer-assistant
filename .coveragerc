@@ -1,0 +1,16 @@
+[run]
+source = app
+branch = True
+omit =
+    app/scripts/*
+
+[report]
+show_missing = True
+skip_covered = True
+precision = 1
+exclude_also =
+    if __name__ == .__main__.:
+    raise NotImplementedError
+
+[html]
+directory = htmlcov

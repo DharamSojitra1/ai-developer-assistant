@@ -3,6 +3,7 @@ from pymongo import AsyncMongoClient
 from app.config import MONGODB_URI
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_mongodb_connection():
     async with AsyncMongoClient(MONGODB_URI) as test_client:

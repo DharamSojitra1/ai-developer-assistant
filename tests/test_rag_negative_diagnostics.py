@@ -6,6 +6,8 @@ from app.config import (
     RAG_RETRIEVAL_TOP_K,
 )
 
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.asyncio
 async def test_inspect_negative_query_relevance():
