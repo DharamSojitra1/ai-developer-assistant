@@ -1,4 +1,4 @@
-import { Calculator, Library, Network } from "lucide-react";
+import { Calculator, Globe, Library, Network } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { AgentRoute } from "@/api/types";
@@ -10,6 +10,11 @@ const ROUTES: Partial<Record<AgentRoute, { label: string; description: string; i
     label: "Knowledge base",
     description: "Answered by searching your knowledge base",
     icon: <Library aria-hidden />,
+  },
+  web: {
+    label: "Web",
+    description: "Answered with live web search and package registry data",
+    icon: <Globe aria-hidden />,
   },
   calculation: {
     label: "Calculator",

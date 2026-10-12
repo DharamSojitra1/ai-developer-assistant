@@ -9,7 +9,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 from app.agents import agent_service
 from app.agents.agent_service import generate_agent_response, stream_agent_response
 from app.exceptions import unhandled_exception_handler
-from app.middleware import request_id_middleware
+from app.middleware import RequestIdMiddleware
 from app.utils.log_context import logged_error_context
 
 AGENT_CHAT = {"message": "What is 25 * 4?"}
@@ -78,7 +78,7 @@ def test_request_log_uses_route_template_and_error_status(client, caplog_info):
 
 def test_unhandled_error_request_is_logged_as_500(caplog_info):
     app = FastAPI()
-    app.middleware("http")(request_id_middleware)
+    app.add_middleware(RequestIdMiddleware)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
     @app.get("/boom")

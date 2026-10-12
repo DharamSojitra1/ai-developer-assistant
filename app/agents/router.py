@@ -4,6 +4,7 @@ from langchain_core.messages import SystemMessage
 from pydantic import BaseModel, Field
 
 from app.agents.prompts import with_security_rules
+from app.config import ROUTER_MODEL_NAME
 from app.schemas import AgentRoute
 from app.services.llm_service import create_chat_model
 from app.utils.agent_logger import logger
@@ -19,12 +20,16 @@ CLASSIFIER_PROMPT = with_security_rules(
     "- knowledge_base: questions about the application's documents or "
     "knowledge base (how a feature works, configuration, deployment, "
     "documentation lookups).\n"
+    "- web: questions needing current, real-world information that may "
+    "have changed recently (latest package versions or releases, news, "
+    "recent changes to public libraries or services, current events).\n"
     "- calculation: arithmetic, numeric computations, or analyzing a given "
     "piece of text (word or line counts).\n"
     "- chat: greetings, small talk, or general questions answerable without "
     "tools or documents.\n"
     "- multi_agent: requests that need several distinct steps combining "
-    "research in the knowledge base, calculations, and/or writing code.\n"
+    "research in the knowledge base or on the web, calculations, and/or "
+    "writing code.\n"
     "- general: anything else, including requests to delete a document, or "
     "when unsure.\n"
     "Use earlier messages only to resolve references in the latest one."
@@ -42,7 +47,11 @@ class RouteDecision(BaseModel):
 
 def create_classifier():
     return (
-        create_chat_model(temperature=0, max_tokens=200)
+        create_chat_model(
+            temperature=0,
+            max_tokens=200,
+            model=ROUTER_MODEL_NAME,
+        )
         .with_structured_output(RouteDecision)
         .with_config(tags=CLASSIFIER_TAGS, run_name="route_classifier")
     )

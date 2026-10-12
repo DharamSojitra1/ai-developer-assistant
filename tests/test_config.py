@@ -15,6 +15,11 @@ AGENT_SETTINGS = [
     "AGENT_HISTORY_LIMIT",
     "TOOL_TIMEOUT_SECONDS",
     "FRONTEND_URL",
+    "AGENT_TOOL_CONTEXT_CHARS",
+    "ROUTER_MODEL_NAME",
+    "GROQ_MAX_RETRIES",
+    "WEB_SEARCH_MAX_RESULTS",
+    "WEB_SEARCH_MAX_CALLS_PER_TURN",
 ]
 
 
@@ -45,11 +50,24 @@ def test_agent_settings_defaults(monkeypatch):
     settings = Settings()
 
     assert settings.AGENT_TEMPERATURE == 0.0
-    assert settings.AGENT_MAX_TOKENS == 500
+    assert settings.AGENT_MAX_TOKENS == 1024
     assert settings.AGENT_MAX_ITERATIONS == 5
-    assert settings.AGENT_HISTORY_LIMIT == 10
+    assert settings.AGENT_HISTORY_LIMIT == 4
     assert settings.TOOL_TIMEOUT_SECONDS == 30.0
     assert settings.FRONTEND_URL == "http://localhost:5173"
+
+
+def test_token_budget_defaults_fit_the_groq_free_tier(monkeypatch):
+    for name in AGENT_SETTINGS:
+        monkeypatch.delenv(name, raising=False)
+
+    settings = Settings()
+
+    assert settings.AGENT_TOOL_CONTEXT_CHARS == 4000
+    assert settings.ROUTER_MODEL_NAME == "openai/gpt-oss-20b"
+    assert settings.GROQ_MAX_RETRIES == 1
+    assert settings.WEB_SEARCH_MAX_RESULTS == 3
+    assert settings.WEB_SEARCH_MAX_CALLS_PER_TURN == 2
 
 
 def test_agent_settings_read_from_environment(monkeypatch):
@@ -83,6 +101,10 @@ def test_agent_settings_read_from_environment(monkeypatch):
         ("RERANKER_DEVICE", "gpu"),
         ("MOCK_MODE", "maybe"),
         ("RAG_RETRIEVAL_TOP_K", "0"),
+        ("GROQ_MAX_RETRIES", "-1"),
+        ("GROQ_MAX_RETRIES", "6"),
+        ("WEB_SEARCH_MAX_CALLS_PER_TURN", "0"),
+        ("AGENT_TOOL_CONTEXT_CHARS", "-1"),
     ],
 )
 def test_invalid_values_fail_at_startup(monkeypatch, name, value):

@@ -3,9 +3,9 @@ import logging
 import re
 import time
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable
 
 from fastapi import Request
+from starlette.datastructures import MutableHeaders
 
 from app.database import record_token_usage
 from app.utils.log_context import bind_log_context
@@ -16,52 +16,75 @@ REQUEST_ID_PATTERN = re.compile(r"^[a-zA-Z0-9._-]{1,64}$")
 request_logger = logging.getLogger("app.request")
 
 
-async def request_id_middleware(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", "")
+class RequestIdMiddleware:
+    """Request ID, log context, token metrics, and the completion log.
 
-    if not REQUEST_ID_PATTERN.fullmatch(request_id):
-        request_id = str(uuid.uuid4())
+    Pure ASGI rather than `@app.middleware("http")`: Starlette's
+    BaseHTTPMiddleware hides client disconnects from the endpoint, which
+    would make `request.is_disconnected()` (and so the Stop button) useless.
+    """
 
-    request.state.request_id = request_id
+    def __init__(self, app):
+        self.app = app
 
-    metrics = RequestMetrics()
-    started = time.perf_counter()
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-    async def finish(status_code: int) -> None:
-        await finish_request(request, request_id, metrics, started, status_code)
+        request = Request(scope)
+        request_id = request.headers.get("X-Request-ID", "")
 
-    # The endpoint (including a streaming body) runs in a task that copies
-    # this context, so every log it writes carries the request ID, and its
-    # LLM calls add to `metrics`.
-    with bind_log_context(request_id=request_id), bind_request_metrics(metrics):
-        try:
-            response = await call_next(request)
-        except Exception:
-            # The app-level handler turns this into a 500 response.
-            await finish(500)
-            raise
+        if not REQUEST_ID_PATTERN.fullmatch(request_id):
+            request_id = str(uuid.uuid4())
 
-    response.headers["X-Request-ID"] = request_id
+        # Shared with the endpoint's Request through scope["state"].
+        request.state.request_id = request_id
 
-    # call_next returns once headers are ready; a streamed body is still
-    # being produced, so the request only finishes after the last chunk.
-    response.body_iterator = _then(
-        response.body_iterator,
-        lambda: finish(response.status_code),
-    )
+        metrics = RequestMetrics()
+        started = time.perf_counter()
+        status_code = 500
+        finished = False
 
-    return response
+        async def finish(status: int) -> None:
+            nonlocal finished
 
+            if finished:
+                return
 
-async def _then(
-    body: AsyncIterator[bytes],
-    on_complete: Callable[[], Awaitable[None]],
-) -> AsyncIterator[bytes]:
-    try:
-        async for chunk in body:
-            yield chunk
-    finally:
-        await on_complete()
+            finished = True
+            await finish_request(request, request_id, metrics, started, status)
+
+        async def send_with_request_id(message):
+            nonlocal status_code
+
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                MutableHeaders(scope=message)["X-Request-ID"] = request_id
+
+            await send(message)
+
+            # A streamed body is still being produced after the headers, so
+            # the request only finishes after the last chunk.
+            if message["type"] == "http.response.body" and not message.get(
+                "more_body", False
+            ):
+                await finish(status_code)
+
+        # The endpoint runs inside this context, so every log it writes
+        # carries the request ID, and its LLM calls add to `metrics`.
+        with bind_log_context(request_id=request_id), bind_request_metrics(
+            metrics
+        ):
+            try:
+                await self.app(scope, receive, send_with_request_id)
+            except Exception:
+                # The app-level handler turns this into a 500 response.
+                await finish(500)
+                raise
+            finally:
+                # e.g. the client disconnected before the body was sent.
+                await finish(status_code)
 
 
 class _BodyTooLarge(Exception):

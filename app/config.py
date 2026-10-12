@@ -32,20 +32,34 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
     GROQ_MODEL_NAME: str = "openai/gpt-oss-120b"
+    # Groq rate limits are per model, so routing on a small model leaves the
+    # answering model's token budget for answers. Empty uses GROQ_MODEL_NAME.
+    ROUTER_MODEL_NAME: str = "openai/gpt-oss-20b"
+    # Retries after a rate limit wait as long as Groq asks (often 20s+).
+    GROQ_MAX_RETRIES: int = Field(default=1, ge=0, le=5)
     MOCK_MODE: bool = True
     REQUEST_TIMEOUT: int = Field(default=30, gt=0)
 
     # Agent
     AGENT_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=2.0)
-    AGENT_MAX_TOKENS: int = Field(default=500, gt=0, le=32_768)
+    AGENT_MAX_TOKENS: int = Field(default=1024, gt=0, le=32_768)
     AGENT_MAX_ITERATIONS: int = Field(default=5, ge=1, le=20)
-    AGENT_HISTORY_LIMIT: int = Field(default=10, ge=0, le=100)
+    AGENT_HISTORY_LIMIT: int = Field(default=4, ge=0, le=100)
     TOOL_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+    # Older search results beyond this many characters are sent to the LLM
+    # as references only (the latest tool step is always sent in full).
+    AGENT_TOOL_CONTEXT_CHARS: int = Field(default=4000, ge=0)
     AGENT_PARALLEL_TOOL_CALLS: bool = True
     AGENT_ROUTING_ENABLED: bool = True
     SUPERVISOR_MAX_ROUNDS: int = Field(default=4, ge=1, le=10)
     # Checkpoints of paused or finished runs expire after this many seconds.
     AGENT_CHECKPOINT_TTL_SECONDS: int = Field(default=7 * 24 * 3600, gt=0)
+
+    # Web search (Tavily); the web_search tool reports an error when unset.
+    TAVILY_API_KEY: str | None = None
+    WEB_SEARCH_MAX_RESULTS: int = Field(default=3, ge=1, le=10)
+    WEB_SEARCH_CACHE_TTL_SECONDS: int = Field(default=600, ge=0)
+    WEB_SEARCH_MAX_CALLS_PER_TURN: int = Field(default=2, ge=1, le=10)
 
     # MongoDB
     MONGODB_URI: str = "mongodb://localhost:27017"
@@ -154,6 +168,8 @@ FRONTEND_URL = settings.FRONTEND_URL
 GEMINI_API_KEY = settings.GEMINI_API_KEY
 GROQ_API_KEY = settings.GROQ_API_KEY
 GROQ_MODEL_NAME = settings.GROQ_MODEL_NAME
+ROUTER_MODEL_NAME = settings.ROUTER_MODEL_NAME.strip() or GROQ_MODEL_NAME
+GROQ_MAX_RETRIES = settings.GROQ_MAX_RETRIES
 MOCK_MODE = settings.MOCK_MODE
 REQUEST_TIMEOUT = settings.REQUEST_TIMEOUT
 
@@ -162,10 +178,16 @@ AGENT_MAX_TOKENS = settings.AGENT_MAX_TOKENS
 AGENT_MAX_ITERATIONS = settings.AGENT_MAX_ITERATIONS
 AGENT_HISTORY_LIMIT = settings.AGENT_HISTORY_LIMIT
 TOOL_TIMEOUT_SECONDS = settings.TOOL_TIMEOUT_SECONDS
+AGENT_TOOL_CONTEXT_CHARS = settings.AGENT_TOOL_CONTEXT_CHARS
 AGENT_PARALLEL_TOOL_CALLS = settings.AGENT_PARALLEL_TOOL_CALLS
 AGENT_ROUTING_ENABLED = settings.AGENT_ROUTING_ENABLED
 SUPERVISOR_MAX_ROUNDS = settings.SUPERVISOR_MAX_ROUNDS
 AGENT_CHECKPOINT_TTL_SECONDS = settings.AGENT_CHECKPOINT_TTL_SECONDS
+
+TAVILY_API_KEY = settings.TAVILY_API_KEY
+WEB_SEARCH_MAX_RESULTS = settings.WEB_SEARCH_MAX_RESULTS
+WEB_SEARCH_CACHE_TTL_SECONDS = settings.WEB_SEARCH_CACHE_TTL_SECONDS
+WEB_SEARCH_MAX_CALLS_PER_TURN = settings.WEB_SEARCH_MAX_CALLS_PER_TURN
 
 MONGODB_URI = settings.MONGODB_URI
 MONGODB_DATABASE = settings.MONGODB_DATABASE

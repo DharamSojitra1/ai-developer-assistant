@@ -1,9 +1,11 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from groq import RateLimitError
 from app.custom_exceptions import AppException
 from app.utils.log_context import get_log_context, logged_error_context
 from pymongo.errors import ConnectionFailure
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,60 @@ async def database_unavailable_handler(
         },
         headers={"Retry-After": "5"},
     )
+
+DEFAULT_MODEL_RETRY_AFTER_SECONDS = 10
+
+
+def model_retry_after_seconds(exc: RateLimitError) -> int:
+    """Groq's retry-after header, rounded up; a default when missing."""
+    try:
+        value = float(exc.response.headers.get("retry-after", ""))
+    except (AttributeError, TypeError, ValueError):
+        return DEFAULT_MODEL_RETRY_AFTER_SECONDS
+
+    return max(1, math.ceil(value)) if math.isfinite(value) else (
+        DEFAULT_MODEL_RETRY_AFTER_SECONDS
+    )
+
+
+async def model_rate_limited_handler(
+    request: Request,
+    exc: RateLimitError,
+):
+    request_id = getattr(
+        request.state,
+        "request_id",
+        "unknown",
+    )
+    retry_after = model_retry_after_seconds(exc)
+
+    logger.warning(
+        "LLM provider rate limit reached",
+        extra={
+            **get_log_context(),
+            **(logged_error_context(exc) or {}),
+            "request_id": request_id,
+            "path": request.url.path,
+            "retry_after_seconds": retry_after,
+        },
+    )
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "success": False,
+            "error": {
+                "code": "MODEL_RATE_LIMITED",
+                "message": (
+                    "The AI model is at its rate limit. "
+                    f"Please try again in about {retry_after} seconds."
+                ),
+            },
+            "request_id": request_id,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
+
 
 async def unhandled_exception_handler(
     request: Request,

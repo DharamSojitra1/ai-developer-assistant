@@ -9,7 +9,7 @@ const OPTIONS: { value: ChatMode; label: string; description: string; icon: Reac
   {
     value: "agent",
     label: "Agent",
-    description: "Uses tools and your knowledge base, and shows sources",
+    description: "Uses tools, live web data, and your knowledge base, and shows sources",
     icon: <Bot aria-hidden />,
   },
   {

@@ -18,6 +18,11 @@ export interface ChatState {
 
 export const initialChatState: ChatState = { messages: [], conversationId: null, load: { status: "idle" } };
 
+/** Whether Stop applies: a reply still streaming, or an agent reply not yet received. */
+export function isStoppable(message: ChatMessage | undefined): boolean {
+  return message?.role === "assistant" && (message.status === "streaming" || message.status === "pending");
+}
+
 export type ChatAction =
   | {
       type: "submit";

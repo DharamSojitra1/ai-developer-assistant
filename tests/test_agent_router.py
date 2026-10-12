@@ -9,11 +9,37 @@ from app.agents.orchestrator import (
     CALC_PROMPT,
     CHAT_PROMPT,
     RAG_PROMPT,
+    WEB_PROMPT,
     create_orchestrator_graph,
 )
 from app.agents.router import RouteDecision, classify_message
+from app.config import ROUTER_MODEL_NAME
 
 QUESTION = {"messages": [("human", "Hello")]}
+
+
+def test_classifier_runs_on_the_small_router_model(monkeypatch):
+    # The small model has its own Groq quota, so routing never spends the
+    # main model's tokens.
+    requested = {}
+
+    class Model:
+        def with_structured_output(self, schema):
+            return self
+
+        def with_config(self, **kwargs):
+            return self
+
+    def fake_create_chat_model(**kwargs):
+        requested.update(kwargs)
+        return Model()
+
+    monkeypatch.setattr(router, "create_chat_model", fake_create_chat_model)
+
+    router.create_classifier()
+
+    assert requested["model"] == ROUTER_MODEL_NAME
+    assert requested["max_tokens"] == 200
 
 
 @pytest.mark.asyncio
@@ -21,6 +47,7 @@ QUESTION = {"messages": [("human", "Hello")]}
     ("route", "prompt"),
     [
         ("knowledge_base", RAG_PROMPT),
+        ("web", WEB_PROMPT),
         ("calculation", CALC_PROMPT),
         ("chat", CHAT_PROMPT),
         ("general", SYSTEM_PROMPT),
@@ -74,12 +101,17 @@ def test_agents_get_only_their_tools(monkeypatch, scripted_llm):
         # plain_llm, the coding worker and the supervisor's finalize step
         (),
         ("search_knowledge_base",),
+        ("package_info", "web_search"),
         ("analyze_text", "calculator"),
+        # the supervisor's research worker
+        ("package_info", "search_knowledge_base", "web_search"),
         (
             "analyze_text",
             "calculator",
             "delete_my_document",
+            "package_info",
             "search_knowledge_base",
+            "web_search",
         ),
     }
 
@@ -147,6 +179,7 @@ LIVE_CASES = [
         "According to our docs, how do I configure hybrid search?",
         {"knowledge_base"},
     ),
+    ("What is the latest version of FastAPI on PyPI?", {"web"}),
     ("Delete my document doc-123.", {"general"}),
     (
         "Look up the documented API rate limit, compute the requests per "

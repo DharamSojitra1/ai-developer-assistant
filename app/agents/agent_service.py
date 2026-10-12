@@ -1,7 +1,8 @@
+import asyncio
 import time
 import uuid
 
-from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk
 from langgraph.types import Command
 
 from app.config import (
@@ -31,6 +32,9 @@ STEP_SAVE_HISTORY = "save_history"
 STATUS_COMPLETED = "completed"
 STATUS_AWAITING_APPROVAL = "awaiting_approval"
 
+HISTORY_RESPONSE_CHARS = 400
+HISTORY_TRUNCATION_MARK = " … [earlier answer shortened]"
+
 
 class RunNotFoundError(LookupError):
     """No run with this ID belongs to the user (or it has expired)."""
@@ -42,6 +46,18 @@ class RunNotPendingError(RuntimeError):
 
 def approval_url(run_id: str) -> str:
     return f"/api/agent/runs/{run_id}/approval"
+
+
+def shorten_history_response(response: str) -> str:
+    """Earlier answers, cut down for context.
+
+    Every LLM step re-sends the history, and a long earlier answer (a table,
+    say) both costs tokens and pulls the model back to the earlier question.
+    """
+    if len(response) <= HISTORY_RESPONSE_CHARS:
+        return response
+
+    return response[:HISTORY_RESPONSE_CHARS].rstrip() + HISTORY_TRUNCATION_MARK
 
 
 async def build_agent_messages(
@@ -65,7 +81,7 @@ async def build_agent_messages(
         )
 
         messages.append(
-            ("ai", item["response"])
+            ("ai", shorten_history_response(item["response"]))
         )
 
     messages.append(
@@ -210,6 +226,26 @@ def log_run_completed(
     )
 
 
+def log_run_cancelled(
+    user_id: str,
+    run_id: str,
+    step: str,
+    started_at: float,
+) -> None:
+    """A stopped run: nothing is saved, and it is not an error."""
+    logger.info(
+        "Agent execution cancelled",
+        extra={
+            **get_log_context(),
+            "user_id": user_id,
+            "run_id": run_id,
+            "step": step,
+            "stop_reason": "cancelled",
+            "duration_ms": round((time.time() - started_at) * 1000),
+        },
+    )
+
+
 def log_run_failed(
     exc: Exception,
     user_id: str,
@@ -240,6 +276,21 @@ def log_run_failed(
     )
 
     mark_error_logged(exc, run_id=run_id, step=step)
+
+
+def unstreamed_answer(final_state: dict) -> str:
+    """Text of the run's final AI message, if it has any."""
+    messages = final_state.get("messages") or []
+    last = messages[-1] if messages else None
+
+    if (
+        isinstance(last, AIMessage)
+        and not last.tool_calls
+        and isinstance(last.content, str)
+    ):
+        return last.content
+
+    return ""
 
 
 def run_response(result: dict, run_id: str, actions: list[dict]) -> dict:
@@ -337,6 +388,9 @@ async def generate_agent_response(
                 graph, result, user_id, run_id, message, model,
                 injection_flags,
             )
+        except asyncio.CancelledError:
+            log_run_cancelled(user_id, run_id, step, started_at)
+            raise
         except Exception as exc:
             log_run_failed(exc, user_id, run_id, step, started_at)
             raise
@@ -387,6 +441,9 @@ async def resume_agent_run(
                 graph, result, user_id, run_id, message, model,
                 detect_injection(message),
             )
+        except asyncio.CancelledError:
+            log_run_cancelled(user_id, run_id, step, started_at)
+            raise
         except Exception as exc:
             log_run_failed(exc, user_id, run_id, step, started_at)
             raise
@@ -469,8 +526,11 @@ async def stream_agent_response(
                     yield message_chunk.content
 
             actions = await pending_approvals(graph, run_id)
+        except (asyncio.CancelledError, GeneratorExit):
+            # The client disconnected (or pressed Stop); not a failure.
+            log_run_cancelled(user_id, run_id, step, started_at)
+            raise
         except Exception as exc:
-            # A client disconnect is GeneratorExit, not a failure.
             log_run_failed(exc, user_id, run_id, step, started_at)
             raise
 
@@ -482,6 +542,14 @@ async def stream_agent_response(
             separator = "\n\n" if streamed_text else ""
             yield separator + approval_message(run_id, actions)
             return
+
+        if not streamed_text:
+            # Answers written without an LLM (the search results digest, the
+            # max-iterations notice) have no tokens to stream.
+            final_text = unstreamed_answer(final_state)
+
+            if final_text:
+                yield final_text
 
         outcome["status"] = STATUS_COMPLETED
         log_run_completed(user_id, message, final_state, injection_flags)

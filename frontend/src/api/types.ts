@@ -43,6 +43,9 @@ export interface ChatRequest {
 export interface SourceReference {
   document_id: string;
   text: string;
+  /** Set for web results; document_id is then the URL. */
+  url?: string | null;
+  title?: string | null;
 }
 
 export interface ChatHistoryItem {
@@ -84,7 +87,7 @@ export interface DeleteHistoryResponse {
 }
 
 // Agent
-export type AgentRoute = "knowledge_base" | "calculation" | "chat" | "multi_agent" | "general";
+export type AgentRoute = "knowledge_base" | "web" | "calculation" | "chat" | "multi_agent" | "general";
 export type AgentRunStatus = "completed" | "awaiting_approval";
 
 export interface ApprovalRequest {

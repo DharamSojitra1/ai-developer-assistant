@@ -17,13 +17,15 @@ from app.limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import FRONTEND_URL, DEBUG, MAX_REQUEST_BYTES, MOCK_MODE
 from pymongo.errors import ConnectionFailure
+from groq import RateLimitError
 from app.exceptions import (
     app_exception_handler,
     database_unavailable_handler,
+    model_rate_limited_handler,
     unhandled_exception_handler,
 )
 from app.custom_exceptions import AppException
-from app.middleware import BodySizeLimitMiddleware, request_id_middleware
+from app.middleware import BodySizeLimitMiddleware, RequestIdMiddleware
 from app.utils.log_context import LogContextFilter
 from app.utils.redaction import RedactionFilter
 from contextlib import asynccontextmanager
@@ -137,7 +139,7 @@ app = FastAPI(
 
 # Inside the request-ID middleware, so rejected bodies are still logged.
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_REQUEST_BYTES)
-app.middleware("http")(request_id_middleware)
+app.add_middleware(RequestIdMiddleware)
 app.add_exception_handler(
     AppException,
     app_exception_handler
@@ -150,6 +152,10 @@ app.add_exception_handler(
 app.add_exception_handler(
     ConnectionFailure,
     database_unavailable_handler
+)
+app.add_exception_handler(
+    RateLimitError,
+    model_rate_limited_handler
 )
 app.add_exception_handler(
     Exception,

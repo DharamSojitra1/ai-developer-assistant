@@ -2,7 +2,7 @@
 
 from langchain_core.messages import ToolMessage
 
-from app.agents.calculator_agent import create_agent_graph
+from app.agents.calculator_agent import SOURCE_TOOLS, create_agent_graph
 from app.tools.registry import ROLE_USER
 from evals.checks import AgentRunOutcome
 from evals.usage import measure_usage
@@ -33,12 +33,12 @@ async def run_agent(question: str, role: str = ROLE_USER) -> AgentRunOutcome:
         tools_called=tools_called,
         source_ids=[source["document_id"] for source in sources],
         contexts=[source["text"] for source in sources],
-        # Knowledge base results are already in contexts as plain text.
+        # Knowledge base and web results are already in contexts as plain text.
         tool_outputs=[
             message.content
             for message in result["messages"]
             if isinstance(message, ToolMessage)
-            and message.name != "search_knowledge_base"
+            and message.name not in SOURCE_TOOLS
         ],
         usage=measurement.usage,
     )

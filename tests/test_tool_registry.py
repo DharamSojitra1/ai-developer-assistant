@@ -46,6 +46,8 @@ def test_user_gets_all_current_tools():
         "analyze_text",
         "search_knowledge_base",
         "delete_my_document",
+        "web_search",
+        "package_info",
     }
 
 

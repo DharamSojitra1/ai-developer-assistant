@@ -45,6 +45,11 @@ const STATUS_MESSAGES: Record<number, string> = {
   504: "The AI provider took too long to respond. Please try again.",
 };
 
+/** Safe, fixed messages for server-side error codes that need specific advice. */
+const CODE_MESSAGES: Record<string, string> = {
+  MODEL_RATE_LIMITED: "The AI model is at its free-tier limit. Wait a few seconds and try again.",
+};
+
 function fallbackMessage(status: number): string {
   if (STATUS_MESSAGES[status]) return STATUS_MESSAGES[status];
   return status >= 500 ? STATUS_MESSAGES[500] : "The request failed.";
@@ -94,7 +99,8 @@ export function normalizeApiError(status: number, body: unknown, headers?: Heade
     // Server-side failures may describe internals, so only their code is kept.
     if (status >= 500) {
       const code = record.error && typeof record.error === "object" ? (record.error as Record<string, unknown>).code : undefined;
-      return new ApiError(fallbackMessage(status), {
+      const known = typeof code === "string" ? CODE_MESSAGES[code] : undefined;
+      return new ApiError(known ?? fallbackMessage(status), {
         status,
         code: typeof code === "string" ? code : undefined,
         retryAfterSeconds,

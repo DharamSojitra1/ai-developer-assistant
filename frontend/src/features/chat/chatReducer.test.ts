@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentChatResponse } from "@/api/types";
 
-import { chatReducer, initialChatState, type ChatState } from "./chatReducer";
+import { chatReducer, initialChatState, isStoppable, type ChatState } from "./chatReducer";
 import type { AssistantMessage } from "./types";
 
 const awaiting: AgentChatResponse = {
@@ -34,6 +34,29 @@ describe("chatReducer", () => {
     expect(state.conversationId).toBe("c1");
     expect(state.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
     expect(assistant(state).status).toBe("pending");
+  });
+
+  it("lets a pending agent reply be stopped and marks it stopped", () => {
+    const state = submitted("agent");
+    expect(isStoppable(assistant(state))).toBe(true);
+
+    const stopped = chatReducer(state, { type: "streamFinished", id: "a1", outcome: "aborted" });
+    expect(assistant(stopped).status).toBe("stopped");
+    expect(isStoppable(assistant(stopped))).toBe(false);
+  });
+
+  it("only offers Stop for replies still in progress", () => {
+    expect(isStoppable(assistant(submitted("stream")))).toBe(true);
+    expect(isStoppable(undefined)).toBe(false);
+    expect(isStoppable({ id: "u", role: "user", content: "hi" })).toBe(false);
+
+    const done = chatReducer(submitted(), {
+      type: "agentResolved",
+      id: "a1",
+      response: { ...awaiting, status: "completed", approval: null, response: "Done" },
+    });
+    expect(isStoppable(assistant(done))).toBe(false);
+    expect(isStoppable(assistant(chatReducer(submitted(), { type: "agentResolved", id: "a1", response: awaiting })))).toBe(false);
   });
 
   it("stores agent metadata on completion", () => {

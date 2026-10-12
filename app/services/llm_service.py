@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from app.config import (
     GROQ_API_KEY,
+    GROQ_MAX_RETRIES,
     GROQ_MODEL_NAME,
     REQUEST_TIMEOUT,
 )
@@ -30,13 +31,15 @@ install_llm_logging()
 def create_chat_model(
     temperature: float,
     max_tokens: int,
+    model: str | None = None,
 ) -> ChatGroq:
     return ChatGroq(
-        model=GROQ_MODEL_NAME,
+        model=model or GROQ_MODEL_NAME,
         api_key=GROQ_API_KEY,
         temperature=temperature,
         max_tokens=max_tokens,
         timeout=REQUEST_TIMEOUT,
+        max_retries=GROQ_MAX_RETRIES,
     )
 
 

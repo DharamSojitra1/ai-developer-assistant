@@ -13,6 +13,18 @@ function setup() {
   return { onDraftChange, type };
 }
 
+describe("Composer stop button", () => {
+  it("replaces Send with Stop while a reply can be stopped", () => {
+    const onStop = vi.fn();
+    render(<Composer mode="agent" busy canStop onSend={() => true} onStop={onStop} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop generating" }));
+
+    expect(onStop).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Waiting for response" })).toBeNull();
+  });
+});
+
 describe("Composer typing signals", () => {
   let signals: MascotSignal[];
   let unsubscribe: () => void;

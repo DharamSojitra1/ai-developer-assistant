@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from typing import Annotated, TypedDict
 
+from groq import BadRequestError
 from langchain_core.messages import (
     AIMessage,
     SystemMessage,
@@ -23,6 +24,15 @@ from app.config import (
     AGENT_MAX_TOKENS,
     AGENT_PARALLEL_TOOL_CALLS,
     AGENT_TEMPERATURE,
+    AGENT_TOOL_CONTEXT_CHARS,
+    WEB_SEARCH_MAX_CALLS_PER_TURN,
+)
+from app.agents.context import compact_tool_context
+from app.agents.final_answer import (
+    build_answer_messages,
+    collect_turn_findings,
+    results_digest,
+    strip_native_citations,
 )
 from app.agents.prompts import with_security_rules
 from app.services.tool_llm_service import create_tool_llm
@@ -32,6 +42,7 @@ from app.tools.registry import (
     get_tools_for_role,
 )
 from app.tools.tool_result import handle_tool_exception, parse_tool_result
+from app.tools.web_search import searches_this_turn
 
 # LLM calls tagged with this produce text meant for the user; streaming
 # forwards only these tokens (not classifier, supervisor, or worker output).
@@ -68,6 +79,9 @@ class AgentState(TypedDict, total=False):
 
 MAX_ITERATIONS = AGENT_MAX_ITERATIONS
 
+# Tools whose results are cited back to the user as sources.
+SOURCE_TOOLS = frozenset({"search_knowledge_base", "web_search"})
+
 SYSTEM_PROMPT = with_security_rules(
     "You are a helpful assistant with tools. "
     "Always use the calculator tool for any arithmetic, "
@@ -79,11 +93,45 @@ SYSTEM_PROMPT = with_security_rules(
     "do not contain, even if you know them. If the results are empty or "
     "do not answer the question, say the knowledge base does not have "
     "enough information to answer it. "
+    "For anything that may have changed recently (news, releases, current "
+    "documentation), use web_search (recent=true for news or other "
+    "time-sensitive questions, at most two searches per question) and cite "
+    "the URLs you rely on; for the "
+    "latest version of a PyPI or npm package, use package_info instead of "
+    "guessing. "
     "When several independent lookups or calculations are needed, request "
     "all of them in the same step so they run in parallel. "
     "Only call delete_my_document when the user explicitly asks to delete "
     "one of their documents; the user is asked to approve it first."
 )
+
+
+CUT_SHORT_NOTE = (
+    "\n\n_(This answer was cut short because it reached the length limit. "
+    "Ask for the rest, or a shorter version.)_"
+)
+
+
+def mark_if_cut_short(response: AIMessage) -> AIMessage:
+    """Say so when an answer stopped at max_tokens instead of ending."""
+    if (
+        response.tool_calls
+        or response.response_metadata.get("finish_reason") != "length"
+        or not isinstance(response.content, str)
+    ):
+        return response
+
+    return response.model_copy(
+        update={"content": response.content.rstrip() + CUT_SHORT_NOTE}
+    )
+
+
+def is_tool_use_failure(exc: BadRequestError) -> bool:
+    """Groq's 400 for a generated tool call that was not allowed."""
+    body = exc.body if isinstance(exc.body, dict) else {}
+    error = body.get("error", body)
+
+    return isinstance(error, dict) and error.get("code") == "tool_use_failed"
 
 
 def should_continue(state: AgentState):
@@ -149,7 +197,7 @@ def collect_sources(state: AgentState):
         if not isinstance(message, ToolMessage):
             continue
 
-        if message.name != "search_knowledge_base":
+        if message.name not in SOURCE_TOOLS:
             continue
 
         payload = parse_tool_result(message.content)
@@ -188,8 +236,10 @@ def collect_sources(state: AgentState):
     ),
     reraise=True,
 )
-def invoke_agent_llm(llm,messages):
-    return llm.invoke(messages)
+async def invoke_agent_llm(llm, messages):
+    # Async so a stopped run cancels the in-flight request instead of
+    # leaving it running in a worker thread.
+    return await llm.ainvoke(messages)
 
 
 def create_agent_llm(
@@ -274,11 +324,52 @@ def build_tool_agent(
         final_answer=final_answer,
     )
 
-    def call_llm(state: AgentState):
-        response = invoke_agent_llm(
-            llm,
-            [SystemMessage(content=system_prompt), *state["messages"]],
+    # Models ignore the "search limit reached" tool error and keep
+    # searching. Past the limit the answer is requested in a separate,
+    # tool-free request (see app/agents/final_answer.py).
+    answer_llm = (
+        create_agent_llm(
+            [],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            final_answer=final_answer,
         )
+        if any(tool.name == "web_search" for tool in tools)
+        else None
+    )
+
+    async def answer_without_tools(state: AgentState) -> AIMessage:
+        findings = collect_turn_findings(state["messages"])
+        messages = build_answer_messages(state["messages"], findings)
+
+        for _ in range(2):
+            try:
+                return await invoke_agent_llm(answer_llm, messages)
+            except BadRequestError as exc:
+                if not is_tool_use_failure(exc):
+                    raise
+
+        return AIMessage(content=results_digest(findings))
+
+    async def call_llm(state: AgentState):
+        if (
+            answer_llm is not None
+            and searches_this_turn(state) >= WEB_SEARCH_MAX_CALLS_PER_TURN
+        ):
+            response = await answer_without_tools(state)
+        else:
+            response = await invoke_agent_llm(
+                llm,
+                [
+                    SystemMessage(content=system_prompt),
+                    *compact_tool_context(
+                        state["messages"],
+                        AGENT_TOOL_CONTEXT_CHARS,
+                    ),
+                ],
+            )
+
+        response = mark_if_cut_short(strip_native_citations(response))
 
         update = {
             "messages": [response],

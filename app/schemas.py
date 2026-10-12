@@ -157,10 +157,14 @@ class SearchResponse(BaseModel):
 class SourceReference(BaseModel):
     document_id: str
     text: str
+    # Set for web results; document_id is then the URL.
+    url: str | None = None
+    title: str | None = None
 
 
 AgentRoute = Literal[
     "knowledge_base",
+    "web",
     "calculation",
     "chat",
     "multi_agent",

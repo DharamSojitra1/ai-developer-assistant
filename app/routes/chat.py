@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Path, Query
 from fastapi.responses import StreamingResponse
+from groq import RateLimitError
 from pymongo.errors import ConnectionFailure
 from app.schemas import (
     CONVERSATION_ID_PATTERN,
@@ -83,8 +84,8 @@ async def chat(
 
         return ChatResponse(response=answer, sources=sources)
 
-    except ConnectionFailure:
-        # Let the app-level handler answer 503 instead of "AI service" 502.
+    except (ConnectionFailure, RateLimitError):
+        # Let the app-level handlers answer 503 instead of "AI service" 502.
         raise
 
     except TimeoutError:

@@ -30,6 +30,18 @@ describe("normalizeApiError", () => {
     expect(error.retryAfterSeconds).toBe(5);
   });
 
+  it("explains a model rate limit with a fixed message, not the server's text", () => {
+    const error = normalizeApiError(
+      503,
+      { success: false, error: { code: "MODEL_RATE_LIMITED", message: "internal text" }, request_id: "req-2" },
+      new Headers({ "Retry-After": "12" }),
+    );
+    expect(error.code).toBe("MODEL_RATE_LIMITED");
+    expect(error.message).toMatch(/free-tier limit/);
+    expect(error.message).not.toMatch(/internal text/);
+    expect(error.retryAfterSeconds).toBe(12);
+  });
+
   it("replaces slowapi's rate limit text with a friendly message", () => {
     const error = normalizeApiError(429, { error: "Rate limit exceeded: 5 per 1 minute" });
     expect(error.code).toBe("RATE_LIMITED");

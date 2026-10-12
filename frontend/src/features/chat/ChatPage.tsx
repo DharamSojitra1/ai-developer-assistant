@@ -6,6 +6,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 
+import { isStoppable } from "./chatReducer";
 import { Composer, type ComposerHandle, type DraftState } from "./Composer";
 import { MessageList } from "./MessageList";
 import { ModeToggle } from "./ModeToggle";
@@ -51,7 +52,6 @@ export function ChatPage() {
   const [draft, setDraft] = useState<DraftState>("empty");
   const last = messages[messages.length - 1];
   const contentKey = last ? `${messages.length}:${last.role === "assistant" ? `${last.content.length}:${last.status}` : ""}` : "";
-  const streaming = last?.role === "assistant" && last.status === "streaming";
   const loading = load.status === "loading";
   const empty = messages.length === 0 && load.status === "idle";
   const lastUserId = [...messages].reverse().find((message) => message.role === "user")?.id;
@@ -74,7 +74,7 @@ export function ChatPage() {
       ref={composerRef}
       mode={mode}
       busy={busy}
-      canStop={busy && streaming}
+      canStop={busy && isStoppable(last)}
       onSend={send}
       onStop={stop}
       onDraftChange={setDraft}

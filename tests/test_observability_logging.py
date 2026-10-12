@@ -12,7 +12,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
 
 from app.agents.calculator_agent import create_agent_graph
-from app.middleware import request_id_middleware
+from app.middleware import RequestIdMiddleware
 from app.tools.calculator import calculator
 from app.tools.text_analyzer import analyze_text
 from app.utils.llm_logging import install_llm_logging
@@ -118,7 +118,7 @@ async def test_context_reaches_tasks_and_threads():
 
 def test_middleware_binds_request_id_for_logs_inside_the_request(caplog_info):
     app = FastAPI()
-    app.middleware("http")(request_id_middleware)
+    app.add_middleware(RequestIdMiddleware)
     endpoint_logger = logging.getLogger("test.endpoint")
 
     @app.get("/work")

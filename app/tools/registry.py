@@ -5,8 +5,10 @@ from langchain_core.tools import BaseTool
 
 from app.tools.calculator import calculator
 from app.tools.delete_document import delete_my_document, describe_delete_request
+from app.tools.package_info import package_info
 from app.tools.rag_search import search_knowledge_base
 from app.tools.text_analyzer import analyze_text
+from app.tools.web_search import web_search
 
 
 ROLE_USER = "user"
@@ -68,6 +70,23 @@ TOOL_REGISTRY: tuple[ToolSpec, ...] = (
             "documents."
         ),
         describe_approval=describe_delete_request,
+    ),
+    ToolSpec(
+        tool=web_search,
+        allowed_roles=ALL_ROLES,
+        deterministic=False,
+        side_effects=(
+            "Read-only; calls the paid Tavily search API (cached briefly). "
+            "Returns untrusted web content."
+        ),
+    ),
+    ToolSpec(
+        tool=package_info,
+        allowed_roles=ALL_ROLES,
+        deterministic=False,
+        side_effects=(
+            "Read-only; calls the free public PyPI or npm registry API."
+        ),
     ),
 )
 
