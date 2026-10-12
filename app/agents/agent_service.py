@@ -48,11 +48,13 @@ async def build_agent_messages(
     user_id: str,
     message: str,
     limit: int = AGENT_HISTORY_LIMIT,
+    conversation_id: str | None = None,
 ) -> list:
 
     history = await get_recent_chat_history(
         user_id=user_id,
         limit=limit,
+        conversation_id=conversation_id,
     )
 
     messages = []
@@ -79,9 +81,11 @@ def build_initial_state(
     started_at: float | None = None,
     user_id: str | None = None,
     user_message: str | None = None,
+    conversation_id: str | None = None,
 ) -> dict:
     return {
         "messages": messages,
+        "conversation_id": conversation_id or str(uuid.uuid4()),
         "iteration_count": 0,
         "sources": [],
         "tool_calls": [],
@@ -249,6 +253,7 @@ def run_response(result: dict, run_id: str, actions: list[dict]) -> dict:
         ),
         "sources": result.get("sources", []),
         "run_id": run_id,
+        "conversation_id": result.get("conversation_id"),
         "route": result.get("route") or None,
         "status": STATUS_AWAITING_APPROVAL if awaiting else STATUS_COMPLETED,
         "approval": actions or None,
@@ -281,6 +286,7 @@ async def _finish_run(
         message=message,
         response=response["response"],
         model=model,
+        conversation_id=response["conversation_id"],
     )
 
     log_run_completed(user_id, message, result, injection_flags)
@@ -293,7 +299,14 @@ async def generate_agent_response(
     message: str,
     model: str,
     role: str = ROLE_USER,
+    conversation_id: str | None = None,
 ) -> dict:
+    """Answer one message.
+
+    With a conversation ID, context comes from that conversation only.
+    Without one, a new conversation is started and context comes from the
+    user's recent turns.
+    """
     run_id = str(uuid.uuid4())
     started_at = time.time()
     step = STEP_LOAD_HISTORY
@@ -303,10 +316,12 @@ async def generate_agent_response(
             messages = await build_agent_messages(
                 user_id=user_id,
                 message=message,
+                conversation_id=conversation_id,
             )
 
             initial_state = build_initial_state(
-                messages, run_id, started_at, user_id, message
+                messages, run_id, started_at, user_id, message,
+                conversation_id,
             )
 
             log_run_started(user_id, message, initial_state, role)
@@ -383,6 +398,7 @@ async def stream_agent_response(
     role: str = ROLE_USER,
     run_id: str | None = None,
     outcome: dict | None = None,
+    conversation_id: str | None = None,
 ):
     """Stream the final answer's tokens.
 
@@ -390,23 +406,31 @@ async def stream_agent_response(
     classifier, supervisor decisions, or worker agents. If the run pauses
     for approval, the stream ends with a note on how to approve it, and
     `outcome` (if given) is filled with the run's status and pending actions
-    so the caller knows not to save the turn yet.
+    so the caller knows not to save the turn yet. `outcome` also carries the
+    conversation the turn belongs to (a new one when none was given).
     """
     run_id = run_id or str(uuid.uuid4())
     started_at = time.time()
     step = STEP_LOAD_HISTORY
     outcome = outcome if outcome is not None else {}
-    outcome.update(run_id=run_id, status=None, approval=None)
+    outcome.update(
+        run_id=run_id,
+        status=None,
+        approval=None,
+        conversation_id=conversation_id or str(uuid.uuid4()),
+    )
 
     with bind_log_context(run_id=run_id, user_id=user_id):
         try:
             messages = await build_agent_messages(
                 user_id=user_id,
                 message=message,
+                conversation_id=conversation_id,
             )
 
             initial_state = build_initial_state(
-                messages, run_id, started_at, user_id, message
+                messages, run_id, started_at, user_id, message,
+                outcome["conversation_id"],
             )
 
             log_run_started(user_id, message, initial_state, role)

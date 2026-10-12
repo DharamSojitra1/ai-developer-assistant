@@ -6,6 +6,20 @@ from langchain_core.runnables import RunnableLambda
 from app.services import chat_service
 
 
+def test_rag_service_is_created_once(monkeypatch):
+    created = []
+    monkeypatch.setattr(chat_service, "_rag_service", None)
+    monkeypatch.setattr(
+        chat_service, "RAGService", lambda: created.append(object()) or created[-1]
+    )
+
+    first = chat_service.get_rag_service()
+    second = chat_service.get_rag_service()
+
+    assert first is second
+    assert len(created) == 1
+
+
 @pytest.mark.asyncio
 async def test_generate_response_mock_mode(monkeypatch):
     monkeypatch.setattr(chat_service, "MOCK_MODE", True)
@@ -33,7 +47,7 @@ async def test_generate_response_llm_mode(monkeypatch):
             }
         ]
     )
-    monkeypatch.setattr(chat_service, "RAGService", lambda: rag_service)
+    monkeypatch.setattr(chat_service, "get_rag_service", lambda: rag_service)
 
     monkeypatch.setattr(
         chat_service,

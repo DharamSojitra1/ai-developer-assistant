@@ -1,3 +1,5 @@
+import uuid
+
 from pymongo import AsyncMongoClient, ReturnDocument
 from app.config import CHAT_HISTORY_RETENTION_DAYS, MONGODB_URI, MONGODB_DATABASE
 from datetime import date, datetime, timedelta, timezone
@@ -23,9 +25,11 @@ async def save_chat_history(
     message: str,
     response: str,
     model: str,
+    conversation_id: str | None = None,
 ):
     document = {
         "user_id": user_id,
+        "conversation_id": conversation_id or str(uuid.uuid4()),
         "message": message,
         "response": response,
         "model": model,
@@ -140,10 +144,21 @@ async def revoke_refresh_token(token_hash: str):
 async def get_recent_chat_history(
     user_id: str,
     limit: int = 10,
+    conversation_id: str | None = None,
 ):
+    """The user's latest turns, oldest first.
+
+    With a conversation ID only that conversation's turns are used; without
+    one, the user's latest turns across all conversations.
+    """
+    query = {"user_id": user_id}
+
+    if conversation_id is not None:
+        query["conversation_id"] = conversation_id
+
     cursor = (
         database["chat_history"]
-        .find({"user_id": user_id})
+        .find(query)
         .sort("created_at", -1)
         .limit(limit)
     )
@@ -156,6 +171,71 @@ async def get_recent_chat_history(
     history.reverse()
 
     return history
+
+
+CONVERSATION_TITLE_CHARS = 80
+
+
+async def list_conversations(
+    user_id: str,
+    limit: int = 20,
+    skip: int = 0,
+) -> list[dict]:
+    """The user's conversations, most recently active first."""
+    pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$sort": {"created_at": 1}},
+        {
+            "$group": {
+                "_id": "$conversation_id",
+                "title": {"$first": "$message"},
+                "message_count": {"$sum": 1},
+                "created_at": {"$first": "$created_at"},
+                "updated_at": {"$last": "$created_at"},
+            }
+        },
+        {"$sort": {"updated_at": -1, "_id": 1}},
+        {"$skip": skip},
+        {"$limit": limit},
+    ]
+
+    cursor = await database["chat_history"].aggregate(pipeline)
+    conversations = await cursor.to_list(length=limit)
+
+    for item in conversations:
+        item["id"] = str(item.pop("_id"))
+        item["title"] = item["title"][:CONVERSATION_TITLE_CHARS]
+
+    return conversations
+
+
+async def get_conversation(
+    user_id: str,
+    conversation_id: str,
+) -> list[dict] | None:
+    """Every turn of one of the user's conversations, oldest first."""
+    cursor = (
+        database["chat_history"]
+        .find({"user_id": user_id, "conversation_id": conversation_id})
+        .sort("created_at", 1)
+    )
+
+    messages = await cursor.to_list(length=None)
+
+    if not messages:
+        return None
+
+    for item in messages:
+        item["id"] = str(item.pop("_id"))
+
+    return messages
+
+
+async def delete_conversation(user_id: str, conversation_id: str) -> int:
+    result = await database["chat_history"].delete_many(
+        {"user_id": user_id, "conversation_id": conversation_id}
+    )
+    return result.deleted_count
 
 
 CHAT_HISTORY_TTL_INDEX = "chat_history_retention"
@@ -173,6 +253,16 @@ async def create_chat_history_indexes(
     ttl_seconds = retention_days * 24 * 3600
 
     await collection.create_index([("user_id", 1), ("created_at", -1)])
+    await collection.create_index(
+        [("user_id", 1), ("conversation_id", 1), ("created_at", 1)]
+    )
+
+    # Turns saved before conversations existed each become their own
+    # conversation; once backfilled, this matches nothing.
+    await collection.update_many(
+        {"conversation_id": {"$exists": False}},
+        [{"$set": {"conversation_id": {"$toString": "$_id"}}}],
+    )
 
     try:
         await collection.create_index(

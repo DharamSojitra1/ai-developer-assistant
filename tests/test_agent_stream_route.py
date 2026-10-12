@@ -86,7 +86,7 @@ def test_agent_stream_saves_history(client, auth_headers):
 def test_agent_stream_sends_run_id_header(client, auth_headers):
     seen = {}
 
-    async def fake_stream_agent_response(user_id, message, role, run_id, outcome):
+    async def fake_stream_agent_response(user_id, message, role, run_id, outcome, **kwargs):
         seen["run_id"] = run_id
         yield "ok"
 
@@ -104,7 +104,7 @@ def test_agent_stream_sends_run_id_header(client, auth_headers):
 
 
 def test_paused_stream_does_not_save_history(client, auth_headers):
-    async def fake_stream_agent_response(user_id, message, role, run_id, outcome):
+    async def fake_stream_agent_response(user_id, message, role, run_id, outcome, **kwargs):
         yield "Approval needed."
         outcome["status"] = "awaiting_approval"
 

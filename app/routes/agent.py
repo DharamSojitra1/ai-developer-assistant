@@ -43,6 +43,7 @@ async def agent_chat(
             message=body.message,
             model=GROQ_MODEL_NAME,
             role=current_user.get("role", ROLE_USER),
+            conversation_id=body.conversation_id,
         )
 
         return AgentChatResponse(**response)
@@ -125,6 +126,7 @@ async def agent_chat_stream(
             role=current_user.get("role", ROLE_USER),
             run_id=run_id,
             outcome=outcome,
+            conversation_id=body.conversation_id,
         ):
 
             full_response.append(chunk)
@@ -141,6 +143,7 @@ async def agent_chat_stream(
             message=body.message,
             response=complete_response,
             model=GROQ_MODEL_NAME,
+            conversation_id=outcome.get("conversation_id"),
         )
 
     return StreamingResponse(

@@ -53,6 +53,8 @@ class AgentState(TypedDict, total=False):
     stop_reason: str
     user_id: str
     user_message: str
+    # Where the finished turn is saved, including after an approval resume.
+    conversation_id: str
     # Orchestrator route chosen by the classifier.
     route: str
     # Human-in-the-loop decisions, by tool call ID.

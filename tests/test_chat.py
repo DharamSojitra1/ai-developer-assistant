@@ -108,7 +108,7 @@ def test_chat_stream_with_mocked_llm(client, auth_headers, monkeypatch):
         "app.services.chat_service.create_streaming_rag_chain",
         return_value=FakeStreamingChain(),
     ), patch(
-        "app.services.chat_service.RAGService",
+        "app.services.chat_service.get_rag_service",
         return_value=rag_service,
     ):
         response = client.post(

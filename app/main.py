@@ -15,7 +15,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import FRONTEND_URL, DEBUG, MAX_REQUEST_BYTES
+from app.config import FRONTEND_URL, DEBUG, MAX_REQUEST_BYTES, MOCK_MODE
 from pymongo.errors import ConnectionFailure
 from app.exceptions import (
     app_exception_handler,
@@ -31,6 +31,7 @@ from app.routes import auth
 from app.routes import rag
 from app.routes import agent
 from app.routes import usage
+from app.services.chat_service import get_rag_service
 from app.services.embedding_migration import pending_chunk_count
 from app.services.vector_store_service import VectorStoreService
 from app.agents.checkpoints import create_mongo_checkpointer, set_checkpointer
@@ -87,6 +88,10 @@ async def lifespan(app: FastAPI):
     await create_chat_history_indexes()
     await asyncio.to_thread(warn_about_stale_embeddings)
     saver = await open_agent_checkpointer()
+
+    if not MOCK_MODE:
+        # Load the reranker now so the first chat message doesn't wait for it.
+        await asyncio.to_thread(get_rag_service)
 
     yield
 

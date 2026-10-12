@@ -10,6 +10,22 @@ from app.guards.injection import screen_input
 
 _CLOSING_TAG = re.compile(r"</\s*document", re.IGNORECASE)
 
+_rag_service: RAGService | None = None
+
+
+def get_rag_service() -> RAGService:
+    """The shared RAG service, created on first use.
+
+    Creating one loads the reranker model and opens the vector store, which
+    takes seconds and blocks, so it must not happen per request.
+    """
+    global _rag_service
+
+    if _rag_service is None:
+        _rag_service = RAGService()
+
+    return _rag_service
+
 
 def _escape_attribute(value: str) -> str:
     return (
@@ -51,6 +67,7 @@ async def generate_response(
     temperature: float,
     max_tokens: int,
     user_id: str,
+    conversation_id: str | None = None,
 ) -> dict:
 
     if MOCK_MODE:
@@ -59,7 +76,7 @@ async def generate_response(
             "sources": [],
         }
 
-    rag_service = RAGService()
+    rag_service = get_rag_service()
     retrieved_chunks = []
 
     async def retrieve_context(inputs: dict) -> str:
@@ -77,6 +94,7 @@ async def generate_response(
         history = await get_recent_chat_history(
             user_id=inputs["user_id"],
             limit=10,
+            conversation_id=conversation_id,
         )
 
         messages = []
@@ -125,12 +143,13 @@ async def generate_streaming_response(
     temperature: float,
     max_tokens: int,
     user_id: str,
+    conversation_id: str | None = None,
 ):
     if MOCK_MODE:
         yield f"Mock response: {message}"
         return
 
-    rag_service = RAGService()
+    rag_service = get_rag_service()
 
     retrieved_chunks = []
 
@@ -149,6 +168,7 @@ async def generate_streaming_response(
     history = await get_recent_chat_history(
         user_id=user_id,
         limit=10,
+        conversation_id=conversation_id,
     )
 
     chat_history = []

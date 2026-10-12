@@ -7,6 +7,7 @@ from app.config import CHAT_MAX_MESSAGE_CHARS, RAG_MAX_TEXT_CHARS
 
 MAX_RESPONSE_TOKENS = 4096
 MAX_SEARCH_QUERY_CHARS = 500
+CONVERSATION_ID_PATTERN = r"^[A-Za-z0-9_-]{8,64}$"
 
 
 class ChatRequest(BaseModel):
@@ -31,6 +32,17 @@ class ChatRequest(BaseModel):
         json_schema_extra={"example": 1024}
     )
 
+    conversation_id: str | None = Field(
+        default=None,
+        pattern=CONVERSATION_ID_PATTERN,
+        description=(
+            "Conversation this message belongs to. Context comes only from "
+            "earlier messages in it. When omitted, a new conversation is "
+            "started and context comes from the user's recent messages."
+        ),
+        json_schema_extra={"example": "3f2b8c1e-6d4a-4f7e-9a51-0c8e2d7b6a90"},
+    )
+
     @field_validator("message")
     @classmethod
     def validate_message(cls, value: str) -> str:
@@ -49,10 +61,29 @@ class ChatHistoryItem(BaseModel):
     response: str
     model:str
     created_at: datetime
+    conversation_id: str | None = None
 
 class ChatHistoryResponse(BaseModel):
     count: int
     history: list[ChatHistoryItem]
+
+
+class ConversationSummary(BaseModel):
+    id: str
+    title: str
+    message_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationListResponse(BaseModel):
+    count: int
+    conversations: list[ConversationSummary]
+
+
+class ConversationDetail(BaseModel):
+    id: str
+    messages: list[ChatHistoryItem]
 
 
 class DeleteHistoryResponse(BaseModel):
@@ -163,6 +194,7 @@ class ChatResponse(BaseModel):
 
 class AgentChatResponse(ChatResponse):
     run_id: str
+    conversation_id: str | None = None
     route: AgentRoute | None = None
     status: AgentRunStatus
     approval: list[ApprovalRequest] | None = Field(
