@@ -1,5 +1,14 @@
 import { ArrowUp, Square } from "lucide-react";
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 
 import { CHAT_MAX_MESSAGE_CHARS } from "@/api/types";
 import { Spinner } from "@/components/ui/Spinner";
@@ -9,6 +18,7 @@ import type { ChatMode } from "./types";
 
 const MAX_HEIGHT_PX = 200;
 const COUNTER_THRESHOLD = Math.floor(CHAT_MAX_MESSAGE_CHARS * 0.8);
+const TYPING_IDLE_MS = 1200;
 
 export interface ComposerHandle {
   focus: () => void;
@@ -23,10 +33,40 @@ export const Composer = forwardRef<
     onSend: (text: string) => boolean;
     onStop: () => void;
     autoFocus?: boolean;
+    /** True while the user is actively typing; false after a short pause, a clear or a send. */
+    onTypingChange?: (typing: boolean) => void;
   }
->(function Composer({ mode, busy, canStop, onSend, onStop, autoFocus }, ref) {
+>(function Composer({ mode, busy, canStop, onSend, onStop, autoFocus, onTypingChange }, ref) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingRef = useRef(false);
+  const typingTimerRef = useRef<number | undefined>(undefined);
+  const onTypingChangeRef = useRef(onTypingChange);
+
+  useEffect(() => {
+    onTypingChangeRef.current = onTypingChange;
+  }, [onTypingChange]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(typingTimerRef.current);
+      if (typingRef.current) onTypingChangeRef.current?.(false);
+    },
+    [],
+  );
+
+  function setTyping(typing: boolean) {
+    window.clearTimeout(typingTimerRef.current);
+    if (typing) typingTimerRef.current = window.setTimeout(() => setTyping(false), TYPING_IDLE_MS);
+    if (typingRef.current === typing) return;
+    typingRef.current = typing;
+    onTypingChangeRef.current?.(typing);
+  }
+
+  function onChange(text: string) {
+    setValue(text);
+    setTyping(Boolean(text.trim()));
+  }
 
   useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }), []);
 
@@ -45,7 +85,10 @@ export const Composer = forwardRef<
   function submit(event?: FormEvent) {
     event?.preventDefault();
     if (!canSend) return;
-    if (onSend(value)) setValue("");
+    if (onSend(value)) {
+      setValue("");
+      setTyping(false);
+    }
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -71,7 +114,7 @@ export const Composer = forwardRef<
           value={value}
           rows={1}
           autoFocus={autoFocus}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
           placeholder={mode === "agent" ? "Ask anything, or ask about your documents…" : "Ask anything…"}
           aria-describedby="composer-hint"

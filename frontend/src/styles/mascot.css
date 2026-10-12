@@ -1,0 +1,558 @@
+/* ---------- Structure ---------- */
+
+.mascot {
+  perspective: 400px;
+}
+
+.mascot-tilt {
+  display: block;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
+  transition: transform 400ms ease-out;
+}
+
+.mascot-svg {
+  display: block;
+}
+
+/* Only on CSS-animated parts: elsewhere it would shift the SVG's own transform attributes. */
+.mascot-body,
+.mascot-shadow,
+.bot-head,
+.bot-antenna,
+.bot-bulb,
+.bot-belly,
+.bot-hand,
+.mascot-lid,
+.mascot-mouth-speaking {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.bot-head {
+  transform-origin: 50% 85%;
+}
+
+.bot-antenna {
+  transform-origin: 50% 100%;
+}
+
+.bot-hand {
+  transform-origin: right center;
+}
+
+/* ---------- Resting pose ---------- */
+
+.bot-head,
+.bot-antenna,
+.bot-hand {
+  transition: transform 400ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.bot-face {
+  transform: translate(calc(var(--look-x, 0px) * 0.5), calc(var(--look-y, 0px) * 0.5));
+  transition: transform 300ms ease-out;
+}
+
+.mascot-look {
+  transform: translate(calc(var(--look-x, 0px) * 0.5), calc(var(--look-y, 0px) * 0.5));
+  transition: transform 300ms ease-out;
+}
+
+.mascot-glance {
+  transition: transform 300ms ease;
+}
+
+.mascot-gloss {
+  transform: translate(calc(var(--look-x, 0px) * -0.6), calc(var(--look-y, 0px) * -0.6));
+  transition: transform 400ms ease-out;
+}
+
+.mascot-lid {
+  transition: transform 160ms ease;
+}
+
+.mascot-eyes-open,
+.mascot-eyes-happy,
+.mascot-mouth {
+  transition: opacity 200ms ease;
+}
+
+.mascot-eyes-happy,
+.mascot-mouth {
+  opacity: 0;
+}
+
+.mascot-mouth-smile {
+  opacity: 1;
+}
+
+.mascot--lg .mascot-body {
+  animation: mascot-float 4s ease-in-out infinite;
+}
+
+.mascot--lg .mascot-shadow {
+  animation: mascot-shadow 4s ease-in-out infinite;
+}
+
+.mascot--lg .bot-belly {
+  animation: bot-bob 4s ease-in-out -1.4s infinite;
+}
+
+.mascot--lg .bot-hand-left {
+  animation: bot-hand-float 3.4s ease-in-out -0.6s infinite;
+}
+
+.mascot--lg .bot-hand-right {
+  animation: bot-hand-float 3.4s ease-in-out -2.1s infinite;
+}
+
+.mascot--lg .bot-antenna {
+  animation: bot-antenna-sway 3.6s ease-in-out infinite;
+}
+
+/* ---------- Idle ---------- */
+
+.mascot[data-mood="idle"]:not([data-still]):not([data-tracking]) .mascot-glance {
+  animation: mascot-glance 7s ease-in-out infinite;
+}
+
+/* ---------- Typing: nod down at the composer ---------- */
+
+.mascot[data-mood="typing"] .bot-head {
+  transform: rotate(2deg) translateY(0.5px);
+}
+
+.mascot[data-mood="typing"] .mascot-glance {
+  transform: translate(0, 1.5px);
+}
+
+.mascot--lg[data-mood="typing"] .bot-antenna {
+  animation: bot-antenna-wiggle 450ms ease-in-out infinite alternate;
+}
+
+/* ---------- Thinking: head tilted, lids lowered, bulb pulsing, hand on chin ---------- */
+
+.mascot[data-mood="thinking"] .bot-head {
+  transform: rotate(-7deg);
+}
+
+.mascot[data-mood="thinking"] .mascot-glance {
+  animation: mascot-ponder 3.2s ease-in-out infinite;
+}
+
+.mascot[data-mood="thinking"] .mascot-lid {
+  transform: translateY(4.5px);
+}
+
+.mascot[data-mood="thinking"] .bot-bulb {
+  animation: bot-bulb-pulse 1.1s ease-in-out infinite;
+}
+
+.mascot--lg[data-mood="thinking"] .bot-hand-right {
+  animation: none;
+  transform: translate(5px, -11px) rotate(40deg);
+}
+
+/* ---------- Speaking ---------- */
+
+.mascot[data-mood="speaking"] .mascot-mouth-smile {
+  opacity: 0;
+}
+
+.mascot[data-mood="speaking"] .mascot-mouth-speaking {
+  opacity: 1;
+  animation: mascot-talk 350ms ease-in-out infinite alternate;
+}
+
+.mascot[data-mood="speaking"] .bot-head {
+  animation: bot-chatter 700ms ease-in-out infinite alternate;
+}
+
+/* ---------- Happy: squint, smile, head tilt, wave ---------- */
+
+.mascot[data-mood="happy"] .mascot-eyes-open,
+.mascot[data-mood="happy"] .mascot-mouth-smile {
+  opacity: 0;
+}
+
+.mascot[data-mood="happy"] .mascot-eyes-happy,
+.mascot[data-mood="happy"] .mascot-mouth-happy {
+  opacity: 1;
+}
+
+.mascot[data-mood="happy"] .bot-head {
+  transform: rotate(6deg);
+}
+
+.mascot[data-mood="happy"] .mascot-body {
+  animation: mascot-hop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+
+.mascot--lg[data-mood="happy"] .bot-hand {
+  animation: bot-wave 600ms ease-in-out 2;
+}
+
+/* ---------- Hello wave (arrival, click, long idle) ---------- */
+
+.mascot--lg[data-wave]:is([data-mood="idle"], [data-mood="typing"], [data-mood="happy"]) .bot-hand-right {
+  animation: bot-hello 1.4s ease-in-out 1;
+}
+
+.mascot--lg[data-wave]:is([data-mood="idle"], [data-mood="typing"], [data-mood="happy"]) .mascot-body {
+  transform-origin: 50% 100%;
+  animation: bot-jump 750ms cubic-bezier(0.33, 0, 0.3, 1) 1;
+}
+
+.mascot--lg[data-wave]:is([data-mood="idle"], [data-mood="typing"], [data-mood="happy"]) .mascot-shadow {
+  animation: bot-jump-shadow 750ms cubic-bezier(0.33, 0, 0.3, 1) 1;
+}
+
+/* ---------- Error: worried lids, wavy mouth, drooping antenna ---------- */
+
+.mascot[data-mood="error"] .mascot-mouth-smile {
+  opacity: 0;
+}
+
+.mascot[data-mood="error"] .mascot-mouth-error {
+  opacity: 1;
+}
+
+.mascot[data-mood="error"] .mascot-glance {
+  transform: translate(0, 1px);
+}
+
+.mascot[data-mood="error"] .mascot-lid-left {
+  transform: translateY(5px) rotate(-14deg);
+}
+
+.mascot[data-mood="error"] .mascot-lid-right {
+  transform: translateY(5px) rotate(14deg);
+}
+
+.mascot[data-mood="error"] .bot-antenna {
+  animation: none;
+  transform: rotate(25deg);
+}
+
+.mascot[data-mood="error"] .bot-head {
+  animation: mascot-shake 400ms ease-in-out 1;
+}
+
+/* Blinks come last so they win over the mood's lid pose. */
+.mascot[data-blink] .mascot-lid {
+  transform: translateY(12.5px);
+  transition-duration: 70ms;
+}
+
+/* ---------- Welcome scene ---------- */
+
+.mascot-mini {
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 35% 30%,
+    #fff 0 10%,
+    var(--tint) 45%,
+    color-mix(in srgb, var(--tint) 45%, var(--color-bot-deep)) 100%
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tint) 45%, transparent);
+  animation: mascot-drift ease-in-out infinite;
+}
+
+.mascot-mini-eyes {
+  position: absolute;
+  inset: 44% 26% 36%;
+  background:
+    radial-gradient(circle, #0b0d1a 0 42%, transparent 48%) left / 34% 100% no-repeat,
+    radial-gradient(circle, #0b0d1a 0 42%, transparent 48%) right / 34% 100% no-repeat;
+}
+
+.mascot-twinkle {
+  animation: mascot-twinkle 2.6s ease-in-out infinite;
+}
+
+.mascot-burst {
+  opacity: 0;
+}
+
+.mascot-scene[data-mood="happy"] .mascot-burst {
+  animation: mascot-burst 900ms ease-out 1 both;
+}
+
+/* ---------- Reduced motion: still poses only ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot,
+  .mascot * {
+    animation: none !important;
+  }
+
+  .mascot-mini,
+  .mascot-twinkle,
+  .mascot-burst {
+    display: none;
+  }
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes mascot-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+
+@keyframes mascot-shadow {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleX(0.88);
+    opacity: 0.7;
+  }
+}
+
+@keyframes bot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes bot-hand-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-2.5px) rotate(6deg);
+  }
+}
+
+@keyframes bot-antenna-sway {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes bot-antenna-wiggle {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes bot-hello {
+  0%,
+  100% {
+    transform: none;
+  }
+  18% {
+    transform: translate(-9px, -8px) rotate(70deg);
+  }
+  34% {
+    transform: translate(-9px, -8px) rotate(48deg);
+  }
+  50% {
+    transform: translate(-9px, -8px) rotate(74deg);
+  }
+  66% {
+    transform: translate(-9px, -8px) rotate(48deg);
+  }
+  82% {
+    transform: translate(-9px, -8px) rotate(68deg);
+  }
+}
+
+@keyframes bot-jump {
+  0%,
+  100% {
+    transform: none;
+  }
+  15% {
+    transform: scale(1.06, 0.92);
+  }
+  45% {
+    transform: translateY(-10px) scale(0.96, 1.05);
+  }
+  72% {
+    transform: scale(1.05, 0.94);
+  }
+  86% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes bot-jump-shadow {
+  0%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+  15% {
+    transform: scaleX(1.08);
+  }
+  45% {
+    transform: scaleX(0.65);
+    opacity: 0.45;
+  }
+  72% {
+    transform: scaleX(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes bot-bulb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes bot-chatter {
+  from {
+    transform: rotate(-1.5deg);
+  }
+  to {
+    transform: rotate(1.5deg);
+  }
+}
+
+@keyframes bot-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: translateY(-4px) rotate(35deg);
+  }
+  70% {
+    transform: translateY(-3px) rotate(10deg);
+  }
+}
+
+@keyframes mascot-glance {
+  0%,
+  35%,
+  60%,
+  92%,
+  100% {
+    transform: translate(0, 0);
+  }
+  40%,
+  55% {
+    transform: translate(-1.5px, 0);
+  }
+  75%,
+  88% {
+    transform: translate(1.5px, -0.5px);
+  }
+}
+
+@keyframes mascot-ponder {
+  0%,
+  100% {
+    transform: translate(1.2px, -1.5px);
+  }
+  50% {
+    transform: translate(-1px, -1.7px);
+  }
+}
+
+@keyframes mascot-talk {
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mascot-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  25% {
+    transform: translateY(0) scale(1.04, 0.96);
+  }
+  55% {
+    transform: translateY(-3px) scale(0.98, 1.02);
+  }
+}
+
+@keyframes mascot-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+  75% {
+    transform: translateX(-1px);
+  }
+}
+
+@keyframes mascot-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(4px, -6px);
+  }
+  66% {
+    transform: translate(-3px, -2px);
+  }
+}
+
+@keyframes mascot-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+}
+
+@keyframes mascot-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.2) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8) rotate(90deg) translateY(-6px);
+  }
+}

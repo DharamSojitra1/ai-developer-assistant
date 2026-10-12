@@ -1,5 +1,5 @@
 import { ArrowDown, MessageSquareOff, SquarePen } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { TopBar } from "@/components/layout/TopBar";
@@ -48,6 +48,7 @@ export function ChatPage() {
   } = useChatSession();
   const { conversationId: routeConversationId } = useParams();
   const composerRef = useRef<ComposerHandle>(null);
+  const [typing, setTyping] = useState(false);
   const last = messages[messages.length - 1];
   const contentKey = last ? `${messages.length}:${last.role === "assistant" ? `${last.content.length}:${last.status}` : ""}` : "";
   const streaming = last?.role === "assistant" && last.status === "streaming";
@@ -76,6 +77,7 @@ export function ChatPage() {
       canStop={busy && streaming}
       onSend={send}
       onStop={stop}
+      onTypingChange={setTyping}
       autoFocus
     />
   );
@@ -109,8 +111,8 @@ export function ChatPage() {
   } else if (empty) {
     body = (
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
-        <div className="mx-auto my-auto w-full max-w-3xl py-10">
-          <WelcomeHeading />
+        <div className="mx-auto my-auto w-full max-w-3xl py-10 short:py-5">
+          <WelcomeHeading mood={busy ? "thinking" : typing ? "typing" : "idle"} />
           {composer}
           <StarterPrompts onPick={send} disabled={busy} />
         </div>

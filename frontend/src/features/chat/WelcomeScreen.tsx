@@ -1,6 +1,9 @@
 import { BookOpen, Calculator, Code2, Lightbulb } from "lucide-react";
 import type { ReactNode } from "react";
 
+import type { MascotMood } from "@/components/mascot/Mascot";
+import { MascotScene } from "@/components/mascot/MascotScene";
+
 const STARTERS: { icon: ReactNode; title: string; prompt: string }[] = [
   {
     icon: <Code2 aria-hidden />,
@@ -32,9 +35,10 @@ function greeting(now = new Date()): string {
   return "Good evening";
 }
 
-export function WelcomeHeading() {
+export function WelcomeHeading({ mood = "idle" }: { mood?: MascotMood }) {
   return (
-    <div className="mb-8 text-center">
+    <div className="mb-8 flex flex-col items-center text-center short:mb-5">
+      <MascotScene mood={mood} className="mb-3 short:mb-1" />
       <p className="text-sm text-muted">{greeting()}</p>
       <h1 className="mt-1.5 text-2xl font-semibold tracking-tight sm:text-[1.75rem]">What are we building today?</h1>
     </div>
@@ -43,7 +47,7 @@ export function WelcomeHeading() {
 
 export function StarterPrompts({ onPick, disabled }: { onPick: (prompt: string) => void; disabled?: boolean }) {
   return (
-    <ul className="mt-6 grid gap-2 sm:grid-cols-2" aria-label="Suggested prompts">
+    <ul className="mt-6 grid gap-2 sm:grid-cols-2 short:mt-4" aria-label="Suggested prompts">
       {STARTERS.map((starter) => (
         <li key={starter.title}>
           <button
@@ -55,7 +59,7 @@ export function StarterPrompts({ onPick, disabled }: { onPick: (prompt: string) 
             <span className="mt-0.5 text-subtle [&_svg]:size-4">{starter.icon}</span>
             <span className="min-w-0">
               <span className="block text-sm font-medium text-fg">{starter.title}</span>
-              <span className="mt-0.5 line-clamp-2 block text-[0.8125rem] leading-5 text-muted">{starter.prompt}</span>
+              <span className="mt-0.5 line-clamp-2 block short:line-clamp-1 text-[0.8125rem] leading-5 text-muted">{starter.prompt}</span>
             </span>
           </button>
         </li>

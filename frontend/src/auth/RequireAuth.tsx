@@ -19,7 +19,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (status === "restoring") {
     return (
       <FullScreenStatus>
-        <LogoMark className="size-10" />
+        <LogoMark className="size-10" mood="thinking" />
         <Spinner className="size-5 text-muted" label="Restoring your session" />
       </FullScreenStatus>
     );

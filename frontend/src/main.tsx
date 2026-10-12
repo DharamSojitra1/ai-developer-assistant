@@ -1,6 +1,7 @@
 import "@fontsource-variable/inter";
 import "@fontsource-variable/geist-mono";
 import "./styles/index.css";
+import "./styles/mascot.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

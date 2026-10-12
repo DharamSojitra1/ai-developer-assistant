@@ -12,6 +12,7 @@ import { RouteBadge } from "./agent/RouteBadge";
 import { groupSources, SourcesPanel } from "./agent/SourcesPanel";
 import { StatusIndicator, ThinkingIndicator } from "./agent/StatusIndicator";
 import type { AssistantMessage, UserMessage } from "./types";
+import { useAssistantMood } from "./useAssistantMood";
 
 export const UserMessageItem = memo(function UserMessageItem({ message }: { message: UserMessage }) {
   return (
@@ -55,11 +56,12 @@ export const AssistantMessageItem = memo(function AssistantMessageItem({
   const isAgent = message.mode === "agent";
   const settled = status !== "pending" && status !== "streaming";
   const showStatus = settled && !approvalUnresolved && status !== "completed";
+  const mood = useAssistantMood(status, isLast, Boolean(message.content));
 
   return (
     <article aria-label="Assistant message" className="group flex gap-4">
       <div className="mt-0.5 hidden sm:block">
-        <LogoMark />
+        <LogoMark mood={mood} still={!isLast} />
       </div>
       <div className="min-w-0 flex-1">
         {working && (
