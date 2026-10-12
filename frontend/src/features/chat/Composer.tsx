@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { CHAT_MAX_MESSAGE_CHARS } from "@/api/types";
+import { emitMascotSignal } from "@/components/mascot/mascotSignals";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/cn";
 
@@ -19,9 +20,23 @@ import type { ChatMode } from "./types";
 const MAX_HEIGHT_PX = 200;
 const COUNTER_THRESHOLD = Math.floor(CHAT_MAX_MESSAGE_CHARS * 0.8);
 const TYPING_IDLE_MS = 1200;
+const READ_LINE_CHARS = 60;
+const THANKS = /\b(thanks|thank you|thx)\W*$/i;
+
+export type DraftState = "empty" | "typing" | "paused";
 
 export interface ComposerHandle {
   focus: () => void;
+}
+
+function emitTypingSignals(previous: string, text: string, caret: number) {
+  const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
+  emitMascotSignal({ type: "key", progress: Math.min(1, (caret - lineStart) / READ_LINE_CHARS) });
+  if (text.length > previous.length && text.endsWith("?") && !previous.endsWith("?")) {
+    emitMascotSignal({ type: "word", word: "question" });
+  } else if (THANKS.test(text) && !THANKS.test(previous)) {
+    emitMascotSignal({ type: "word", word: "thanks" });
+  }
 }
 
 export const Composer = forwardRef<
@@ -33,39 +48,45 @@ export const Composer = forwardRef<
     onSend: (text: string) => boolean;
     onStop: () => void;
     autoFocus?: boolean;
-    /** True while the user is actively typing; false after a short pause, a clear or a send. */
-    onTypingChange?: (typing: boolean) => void;
+    /** `typing` while keys are pressed, `paused` after a short pause with text left, `empty` once cleared or sent. */
+    onDraftChange?: (state: DraftState) => void;
   }
->(function Composer({ mode, busy, canStop, onSend, onStop, autoFocus, onTypingChange }, ref) {
+>(function Composer({ mode, busy, canStop, onSend, onStop, autoFocus, onDraftChange }, ref) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const typingRef = useRef(false);
+  const draftRef = useRef<DraftState>("empty");
   const typingTimerRef = useRef<number | undefined>(undefined);
-  const onTypingChangeRef = useRef(onTypingChange);
+  const onDraftChangeRef = useRef(onDraftChange);
 
   useEffect(() => {
-    onTypingChangeRef.current = onTypingChange;
-  }, [onTypingChange]);
+    onDraftChangeRef.current = onDraftChange;
+  }, [onDraftChange]);
 
   useEffect(
     () => () => {
       window.clearTimeout(typingTimerRef.current);
-      if (typingRef.current) onTypingChangeRef.current?.(false);
+      if (draftRef.current !== "empty") onDraftChangeRef.current?.("empty");
     },
     [],
   );
 
-  function setTyping(typing: boolean) {
+  function setDraft(state: DraftState) {
     window.clearTimeout(typingTimerRef.current);
-    if (typing) typingTimerRef.current = window.setTimeout(() => setTyping(false), TYPING_IDLE_MS);
-    if (typingRef.current === typing) return;
-    typingRef.current = typing;
-    onTypingChangeRef.current?.(typing);
+    if (state === "typing") typingTimerRef.current = window.setTimeout(() => setDraft("paused"), TYPING_IDLE_MS);
+    if (draftRef.current === state) return;
+    draftRef.current = state;
+    onDraftChangeRef.current?.(state);
   }
 
-  function onChange(text: string) {
+  function onChange(text: string, caret: number | null) {
+    const previous = value;
     setValue(text);
-    setTyping(Boolean(text.trim()));
+    if (!text.trim()) {
+      setDraft("empty");
+      return;
+    }
+    setDraft("typing");
+    emitTypingSignals(previous, text, caret ?? text.length);
   }
 
   useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }), []);
@@ -87,7 +108,7 @@ export const Composer = forwardRef<
     if (!canSend) return;
     if (onSend(value)) {
       setValue("");
-      setTyping(false);
+      setDraft("empty");
     }
   }
 
@@ -114,7 +135,7 @@ export const Composer = forwardRef<
           value={value}
           rows={1}
           autoFocus={autoFocus}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onChange(event.target.value, event.target.selectionStart)}
           onKeyDown={onKeyDown}
           placeholder={mode === "agent" ? "Ask anything, or ask about your documents…" : "Ask anything…"}
           aria-describedby="composer-hint"

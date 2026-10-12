@@ -1,5 +1,7 @@
 import { useEffect, type RefObject } from "react";
 
+import { onMascotSignal } from "./mascotSignals";
+
 export const BLINK_MS = 140;
 const BLINK_MIN_GAP_MS = 2500;
 const BLINK_MAX_GAP_MS = 6500;
@@ -11,6 +13,9 @@ export const WAVE_MS = 1400;
 export const HELLO_DELAY_MS = 700;
 const IDLE_WAVE_MIN_MS = 15_000;
 const IDLE_WAVE_MAX_MS = 20_000;
+export const KEY_PULSE_MS = 140;
+export const KEY_THROTTLE_MS = 150;
+export const REACT_MS = 1100;
 
 function matches(query: string): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia(query).matches;
@@ -142,6 +147,46 @@ export function useMascotWave(ref: RefObject<HTMLElement | null>, enabled: boole
       for (const type of activityEvents) window.removeEventListener(type, onActivity);
       element.removeEventListener("click", wave);
       delete element.dataset.wave;
+    };
+  }, [ref, enabled]);
+}
+
+/**
+ * Reacts to composer signals: `--read-x` follows the caret along the line, `data-key` pulses on
+ * keystrokes (throttled) and `data-react` briefly shows a reaction to "?" or "thanks".
+ */
+export function useMascotReactions(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || !enabled || matches("(prefers-reduced-motion: reduce)")) return;
+
+    let lastKey = -Infinity;
+    let keyTimer: number | undefined;
+    let reactTimer: number | undefined;
+
+    const unsubscribe = onMascotSignal((signal) => {
+      if (signal.type === "key") {
+        element.style.setProperty("--read-x", signal.progress.toFixed(3));
+        const now = Date.now();
+        if (now - lastKey < KEY_THROTTLE_MS) return;
+        lastKey = now;
+        element.dataset.key = "";
+        window.clearTimeout(keyTimer);
+        keyTimer = window.setTimeout(() => delete element.dataset.key, KEY_PULSE_MS);
+      } else {
+        element.dataset.react = signal.word;
+        window.clearTimeout(reactTimer);
+        reactTimer = window.setTimeout(() => delete element.dataset.react, REACT_MS);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      window.clearTimeout(keyTimer);
+      window.clearTimeout(reactTimer);
+      element.style.removeProperty("--read-x");
+      delete element.dataset.key;
+      delete element.dataset.react;
     };
   }, [ref, enabled]);
 }

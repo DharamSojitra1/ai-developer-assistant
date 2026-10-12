@@ -2,9 +2,11 @@ import { useId, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 
-import { useMascotEyes, useMascotWave } from "./useMascotEyes";
+import { useMascotEyes, useMascotReactions, useMascotWave } from "./useMascotEyes";
 
-export type MascotMood = "idle" | "typing" | "thinking" | "speaking" | "happy" | "error";
+export type MascotMood = "idle" | "typing" | "waiting" | "thinking" | "speaking" | "happy" | "error";
+
+const HOVER_HAPPY_MOODS: MascotMood[] = ["idle", "typing", "waiting"];
 
 const INK = "#0b0d1a";
 const HEAD_PATH = "M60 16C68 20 95 30 95 50c0 17-15 27-35 27S25 67 25 50c0-20 27-30 35-34z";
@@ -46,8 +48,9 @@ export function Mascot({
 
   useMascotEyes(rootRef, { blink: !still, track: interactive });
   useMascotWave(rootRef, large && interactive);
+  useMascotReactions(rootRef, large && interactive);
 
-  const shownMood: MascotMood = interactive && hovered && (mood === "idle" || mood === "typing") ? "happy" : mood;
+  const shownMood: MascotMood = interactive && hovered && HOVER_HAPPY_MOODS.includes(mood) ? "happy" : mood;
 
   const svg = (
     <svg viewBox={large ? "0 0 120 120" : "22 1 76 76"} fill="none" className="mascot-svg size-full overflow-visible">

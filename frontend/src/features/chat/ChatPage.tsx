@@ -6,7 +6,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 
-import { Composer, type ComposerHandle } from "./Composer";
+import { Composer, type ComposerHandle, type DraftState } from "./Composer";
 import { MessageList } from "./MessageList";
 import { ModeToggle } from "./ModeToggle";
 import { useAutoScroll } from "./useAutoScroll";
@@ -48,7 +48,7 @@ export function ChatPage() {
   } = useChatSession();
   const { conversationId: routeConversationId } = useParams();
   const composerRef = useRef<ComposerHandle>(null);
-  const [typing, setTyping] = useState(false);
+  const [draft, setDraft] = useState<DraftState>("empty");
   const last = messages[messages.length - 1];
   const contentKey = last ? `${messages.length}:${last.role === "assistant" ? `${last.content.length}:${last.status}` : ""}` : "";
   const streaming = last?.role === "assistant" && last.status === "streaming";
@@ -77,7 +77,7 @@ export function ChatPage() {
       canStop={busy && streaming}
       onSend={send}
       onStop={stop}
-      onTypingChange={setTyping}
+      onDraftChange={setDraft}
       autoFocus
     />
   );
@@ -112,7 +112,9 @@ export function ChatPage() {
     body = (
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4">
         <div className="mx-auto my-auto w-full max-w-3xl py-10 short:py-5">
-          <WelcomeHeading mood={busy ? "thinking" : typing ? "typing" : "idle"} />
+          <WelcomeHeading
+            mood={busy ? "thinking" : draft === "typing" ? "typing" : draft === "paused" ? "waiting" : "idle"}
+          />
           {composer}
           <StarterPrompts onPick={send} disabled={busy} />
         </div>

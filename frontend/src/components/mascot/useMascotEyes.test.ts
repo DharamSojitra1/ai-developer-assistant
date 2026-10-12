@@ -1,7 +1,18 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BLINK_MS, HELLO_DELAY_MS, useMascotEyes, useMascotWave, WAVE_MS } from "./useMascotEyes";
+import { emitMascotSignal } from "./mascotSignals";
+import {
+  BLINK_MS,
+  HELLO_DELAY_MS,
+  KEY_PULSE_MS,
+  KEY_THROTTLE_MS,
+  REACT_MS,
+  useMascotEyes,
+  useMascotReactions,
+  useMascotWave,
+  WAVE_MS,
+} from "./useMascotEyes";
 
 function mockMatchMedia(matching: string[]) {
   vi.stubGlobal(
@@ -110,5 +121,63 @@ describe("useMascotWave", () => {
     other.click();
     expect(element.hasAttribute("data-wave")).toBe(false);
     expect(other.hasAttribute("data-wave")).toBe(false);
+  });
+});
+
+describe("useMascotReactions", () => {
+  let element: HTMLSpanElement;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    element = document.createElement("span");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("follows the caret, pulses on keys with throttling and shows word reactions", () => {
+    mockMatchMedia([]);
+    renderHook(() => useMascotReactions({ current: element }, true));
+
+    emitMascotSignal({ type: "key", progress: 0.25 });
+    expect(element.style.getPropertyValue("--read-x")).toBe("0.250");
+    expect(element.hasAttribute("data-key")).toBe(true);
+    vi.advanceTimersByTime(KEY_PULSE_MS);
+    expect(element.hasAttribute("data-key")).toBe(false);
+
+    emitMascotSignal({ type: "key", progress: 0.3 });
+    expect(element.hasAttribute("data-key")).toBe(false);
+    expect(element.style.getPropertyValue("--read-x")).toBe("0.300");
+    vi.advanceTimersByTime(KEY_THROTTLE_MS);
+    emitMascotSignal({ type: "key", progress: 0.35 });
+    expect(element.hasAttribute("data-key")).toBe(true);
+
+    emitMascotSignal({ type: "word", word: "question" });
+    expect(element.dataset.react).toBe("question");
+    emitMascotSignal({ type: "word", word: "thanks" });
+    expect(element.dataset.react).toBe("thanks");
+    vi.advanceTimersByTime(REACT_MS);
+    expect(element.hasAttribute("data-react")).toBe(false);
+  });
+
+  it("ignores signals with reduced motion and cleans up on unmount", () => {
+    mockMatchMedia(["(prefers-reduced-motion: reduce)"]);
+    renderHook(() => useMascotReactions({ current: element }, true));
+    emitMascotSignal({ type: "word", word: "thanks" });
+    expect(element.hasAttribute("data-react")).toBe(false);
+
+    mockMatchMedia([]);
+    const other = document.createElement("span");
+    const { unmount } = renderHook(() => useMascotReactions({ current: other }, true));
+    emitMascotSignal({ type: "key", progress: 1 });
+    emitMascotSignal({ type: "word", word: "question" });
+    unmount();
+    expect(other.hasAttribute("data-key")).toBe(false);
+    expect(other.hasAttribute("data-react")).toBe(false);
+    expect(other.style.getPropertyValue("--read-x")).toBe("");
+    emitMascotSignal({ type: "word", word: "thanks" });
+    expect(other.hasAttribute("data-react")).toBe(false);
   });
 });

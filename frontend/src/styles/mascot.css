@@ -117,18 +117,56 @@
   animation: mascot-glance 7s ease-in-out infinite;
 }
 
-/* ---------- Typing: nod down at the composer ---------- */
+/* ---------- Typing: nod, read along the line, tap the hands ---------- */
 
 .mascot[data-mood="typing"] .bot-head {
   transform: rotate(2deg) translateY(0.5px);
 }
 
+/* --read-x (0 to 1) is the caret's position along the current line. */
 .mascot[data-mood="typing"] .mascot-glance {
-  transform: translate(0, 1.5px);
+  transform: translate(calc(var(--read-x, 0.5) * 3px - 1.5px), 1.5px);
+  transition-duration: 200ms;
 }
 
 .mascot--lg[data-mood="typing"] .bot-antenna {
   animation: bot-antenna-wiggle 450ms ease-in-out infinite alternate;
+}
+
+.mascot--lg[data-mood="typing"] .bot-hand-left {
+  animation: bot-tap 360ms ease-in-out infinite alternate;
+}
+
+.mascot--lg[data-mood="typing"] .bot-hand-right {
+  animation: bot-tap 360ms ease-in-out -360ms infinite alternate;
+}
+
+/* ---------- Keystroke pulse ---------- */
+
+.bot-bulb {
+  transition:
+    transform 120ms ease-out,
+    filter 120ms ease-out;
+}
+
+.mascot--lg[data-key] .bot-bulb {
+  transform: scale(1.3);
+  filter: brightness(1.3);
+}
+
+.mascot--lg[data-key] .bot-head {
+  transform: rotate(2deg) translateY(1.5px);
+  transition-duration: 90ms;
+}
+
+/* ---------- Waiting: paused mid-message, looks up at you ---------- */
+
+.mascot[data-mood="waiting"] .mascot-glance {
+  transform: translate(0, -1.5px);
+}
+
+.mascot--lg[data-mood="waiting"] .bot-antenna {
+  animation: none;
 }
 
 /* ---------- Thinking: head tilted, lids lowered, bulb pulsing, hand on chin ---------- */
@@ -237,6 +275,34 @@
 
 .mascot[data-mood="error"] .bot-head {
   animation: mascot-shake 400ms ease-in-out 1;
+}
+
+/* ---------- Word reactions while typing ("?" and "thanks") ---------- */
+
+.mascot--lg[data-react="question"] .bot-head {
+  transform: rotate(-10deg);
+}
+
+.mascot--lg[data-react="question"] .bot-antenna {
+  animation: bot-antenna-wiggle 200ms ease-in-out infinite alternate;
+}
+
+.mascot--lg[data-react="thanks"] .mascot-eyes-open,
+.mascot--lg[data-react="thanks"] .mascot-mouth-smile {
+  opacity: 0;
+}
+
+.mascot--lg[data-react="thanks"] .mascot-eyes-happy,
+.mascot--lg[data-react="thanks"] .mascot-mouth-happy {
+  opacity: 1;
+}
+
+.mascot--lg[data-react="thanks"] .bot-head {
+  transform: rotate(6deg);
+}
+
+.mascot--lg[data-react="thanks"] .bot-hand {
+  animation: bot-wave 600ms ease-in-out 1;
 }
 
 /* Blinks come last so they win over the mood's lid pose. */
@@ -376,6 +442,15 @@
   }
   82% {
     transform: translate(-9px, -8px) rotate(68deg);
+  }
+}
+
+@keyframes bot-tap {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(3px) rotate(-8deg);
   }
 }
 

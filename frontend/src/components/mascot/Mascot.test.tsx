@@ -39,6 +39,13 @@ describe("Mascot", () => {
     expect(container.firstElementChild!.getAttribute("data-mood")).toBe("idle");
   });
 
+  it("smiles on hover while waiting for the user to finish", () => {
+    const { container } = render(<Mascot mood="waiting" interactive />);
+    const root = container.firstElementChild!;
+    fireEvent.pointerEnter(root);
+    expect(root.getAttribute("data-mood")).toBe("happy");
+  });
+
   it("keeps working moods on hover", () => {
     const { container } = render(<Mascot mood="thinking" interactive />);
     const root = container.firstElementChild!;
