@@ -1,0 +1,32 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+.coveragerc
+htmlcov/
+
+# Local databases and runtime state
+chroma_db/
+state/
+.env
+
+# Test & Evaluation files (not needed in production image)
+tests/
+evals/
+docs/
+manual_llm_test.py
+
+# Frontend files (frontend deployed separately to Vercel or static host)
+frontend/

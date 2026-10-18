@@ -1,0 +1,52 @@
+services:
+  # ============================================================================
+  # Backend API (FastAPI + ChromaDB + RAG)
+  # ============================================================================
+  - type: web
+    name: ai-developer-assistant-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon # Available: oregon, frankfurt, singapore, ohio
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: MOCK_MODE
+        value: "false"
+      - key: API_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: MONGODB_DATABASE
+        value: ai_developer_assistant
+      - key: MONGODB_URI
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # ============================================================================
+  # Frontend Static Site (Optional: uncomment if deploying frontend on Render too)
+  # ============================================================================
+  # - type: static_site
+  #   name: ai-developer-assistant-frontend
+  #   buildCommand: npm --prefix frontend install && npm --prefix frontend run build
+  #   staticPublishPath: ./frontend/dist
+  #   plan: free
+  #   autoDeploy: true
+  #   routes:
+  #     - type: rewrite
+  #       source: /*
+  #       destination: /index.html
+  #   envVars:
+  #     - key: VITE_API_BASE_URL
+  #       sync: false
