@@ -1,6 +1,4 @@
-import torch
 import logging
-from sentence_transformers import CrossEncoder
 
 from app.config import RERANKER_MODEL_NAME, RERANKER_DEVICE
 
@@ -12,6 +10,8 @@ class RerankerService:
         model_name: str = RERANKER_MODEL_NAME,
         device: str = RERANKER_DEVICE,
     ):
+        from sentence_transformers import CrossEncoder
+
         resolved_device = self._resolve_device(device)
 
         self.model = CrossEncoder(
@@ -21,6 +21,8 @@ class RerankerService:
 
     @staticmethod
     def _resolve_device(device: str) -> str:
+        import torch
+
         if device == "auto":
             return "cuda" if torch.cuda.is_available() else "cpu"
 

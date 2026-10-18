@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from app.config import (
+    ENABLE_RERANKER,
     RAG_DISTANCE_THRESHOLD,
     RAG_FINAL_TOP_K,
     RAG_HYBRID_SEARCH,
@@ -130,10 +131,17 @@ def unique_results(results: list[dict]) -> list[dict]:
 
 
 class RAGService:
-    def __init__(self, hybrid_search: bool = RAG_HYBRID_SEARCH):
+    def __init__(
+        self,
+        hybrid_search: bool = RAG_HYBRID_SEARCH,
+        enable_reranker: bool = ENABLE_RERANKER,
+    ):
         self.embedding_service = EmbeddingService()
         self.vector_store = VectorStoreService()
-        self.reranker_service = RerankerService()
+        self.enable_reranker = enable_reranker
+        self.reranker_service = (
+            RerankerService() if enable_reranker else None
+        )
         self.answerability_service = AnswerabilityService()
         self.hybrid_search = hybrid_search
 
@@ -410,26 +418,29 @@ class RAGService:
         if not filtered_results:
             return []
 
-        try:
-            reranked_results = await asyncio.to_thread(
-                self.reranker_service.rerank,
-                query=query,
-                documents=filtered_results,
-                top_k=RAG_FINAL_TOP_K,
-            )
+        if self.reranker_service is not None:
+            try:
+                reranked_results = await asyncio.to_thread(
+                    self.reranker_service.rerank,
+                    query=query,
+                    documents=filtered_results,
+                    top_k=RAG_FINAL_TOP_K,
+                )
 
-        except Exception:
-            logger.exception(
-                "Reranking failed; rejecting unvalidated context",
-                extra={"query_length": len(query)},
-            )
-            return []
+            except Exception:
+                logger.exception(
+                    "Reranking failed; rejecting unvalidated context",
+                    extra={"query_length": len(query)},
+                )
+                return []
 
-        score_filtered_results = [
-            document
-            for document in reranked_results
-            if document["rerank_score"] >= RERANKER_SCORE_THRESHOLD
-        ]
+            score_filtered_results = [
+                document
+                for document in reranked_results
+                if document["rerank_score"] >= RERANKER_SCORE_THRESHOLD
+            ]
+        else:
+            score_filtered_results = filtered_results[:RAG_FINAL_TOP_K]
 
         if not score_filtered_results:
             return []

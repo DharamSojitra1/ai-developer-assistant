@@ -19,6 +19,8 @@ services:
         value: "false"
       - key: MOCK_MODE
         value: "false"
+      - key: ENABLE_RERANKER
+        value: "false"
       - key: API_KEY
         generateValue: true
       - key: JWT_SECRET_KEY

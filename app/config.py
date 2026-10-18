@@ -152,6 +152,7 @@ class Settings(BaseSettings):
         return self
 
     # Reranker
+    ENABLE_RERANKER: bool = True
     RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
     RERANKER_DEVICE: Literal["auto", "cpu", "cuda"] = "auto"
     RERANKER_SCORE_THRESHOLD: float = 0.0
@@ -211,6 +212,7 @@ RAG_RRF_K = settings.RAG_RRF_K
 
 EMBEDDING_MODEL_NAME = settings.EMBEDDING_MODEL_NAME
 
+ENABLE_RERANKER = settings.ENABLE_RERANKER
 RERANKER_MODEL_NAME = settings.RERANKER_MODEL_NAME
 RERANKER_DEVICE = settings.RERANKER_DEVICE
 RERANKER_SCORE_THRESHOLD = settings.RERANKER_SCORE_THRESHOLD

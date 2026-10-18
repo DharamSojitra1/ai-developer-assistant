@@ -15,8 +15,14 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import FRONTEND_URL, DEBUG, MAX_REQUEST_BYTES, MOCK_MODE
 from pymongo.errors import ConnectionFailure
+from app.config import (
+    FRONTEND_URL,
+    DEBUG,
+    MAX_REQUEST_BYTES,
+    MOCK_MODE,
+    ENABLE_RERANKER,
+)
 from groq import RateLimitError
 from app.exceptions import (
     app_exception_handler,
@@ -91,7 +97,7 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(warn_about_stale_embeddings)
     saver = await open_agent_checkpointer()
 
-    if not MOCK_MODE:
+    if not MOCK_MODE and ENABLE_RERANKER:
         # Load the reranker now so the first chat message doesn't wait for it.
         await asyncio.to_thread(get_rag_service)
 
