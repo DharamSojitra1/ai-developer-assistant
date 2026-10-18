@@ -50,7 +50,7 @@ export function AppShell() {
                 <Sidebar variant="drawer" onClose={closeDrawer} onNavigate={closeDrawer} />
               </MobileDrawer>
             )}
-            <main id="main" className="flex min-w-0 flex-1 flex-col">
+            <main id="main" className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
               <Outlet />
             </main>
           </div>
