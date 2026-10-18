@@ -41,7 +41,7 @@ export function AppShell() {
           <div className="flex h-dvh overflow-hidden">
             {isDesktop ? (
               !collapsed && (
-                <aside className="w-[264px] shrink-0 border-r border-border bg-surface" aria-label="Sidebar">
+                <aside className="h-full w-[264px] shrink-0 border-r border-border bg-surface" aria-label="Sidebar">
                   <Sidebar variant="desktop" onClose={() => setCollapsed(true)} onNavigate={() => undefined} />
                 </aside>
               )
