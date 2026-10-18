@@ -70,64 +70,64 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Frontend (React + Vite)                      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌───────────┐ │
-│  │   Chat   │ │Knowledge │ │  History  │ │  Auth   │ │   Usage   │ │
-│  │  Panel   │ │  Base    │ │  Sidebar  │ │  Pages  │ │ Dashboard │ │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬────┘ └─────┬─────┘ │
-│       │             │            │             │            │       │
-│       └─────────────┴────────────┴─────────────┴────────────┘       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌───────────┐   │
+│  │   Chat   │ │Knowledge │ │  History │ │  Auth   │ │   Usage   │   │
+│  │  Panel   │ │  Base    │ │  Sidebar │ │  Pages  │ │ Dashboard │   │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬────┘ └─────┬─────┘   │
+│       │            │            │            │            │         │
+│       └────────────┴────────────┴────────────┴────────────┘         │
 │                              │  HTTP / SSE                          │
 └──────────────────────────────┼──────────────────────────────────────┘
                                │
 ┌──────────────────────────────┼──────────────────────────────────────┐
-│                     FastAPI Backend                                  │
-│                              │                                       │
-│  ┌───────────────────────────┴────────────────────────────────────┐  │
-│  │                     API Layer (Routes)                         │  │
+│                     FastAPI Backend                                 │
+│                              │                                      │
+│  ┌───────────────────────────┴───────────────────────────────────┐  │
+│  │                     API Layer (Routes)                        │  │
 │  │  /api/chat  │  /api/auth  │  /api/rag  │  /api/agent  │ usage │  │
 │  └──────┬──────┴──────┬──────┴──────┬─────┴──────┬───────┴───────┘  │
-│         │             │             │            │                    │
+│         │             │             │            │                  │
 │  ┌──────┴─────────────┴─────────────┴────────────┴───────────────┐  │
-│  │                   Middleware & Guards                          │  │
+│  │                   Middleware & Guards                         │  │
 │  │  RequestID │ BodySize │ RateLimit │ CORS │ InjectionDetection │  │
 │  └──────┬────────────────────────────────────────────────────────┘  │
-│         │                                                            │
+│         │                                                           │
 │  ┌──────┴────────────────────────────────────────────────────────┐  │
-│  │                 Agentic AI Layer (LangGraph)                   │  │
-│  │                                                                │  │
+│  │                 Agentic AI Layer (LangGraph)                  │  │
+│  │                                                               │  │
 │  │  ┌──────────┐    ┌────────────────────────────────────────┐   │  │
-│  │  │ Router / │───►│         Orchestrator Graph              │   │  │
+│  │  │ Router / │───►│         Orchestrator Graph             │   │  │
 │  │  │Classifier│    │                                        │   │  │
-│  │  └──────────┘    │  ┌──────────┐  ┌───────────┐          │   │  │
-│  │                  │  │RAG Agent │  │ Web Agent  │          │   │  │
-│  │                  │  ├──────────┤  ├───────────┤          │   │  │
-│  │                  │  │Calc Agent│  │Plain LLM  │          │   │  │
-│  │                  │  ├──────────┤  ├───────────┤          │   │  │
-│  │                  │  │Tool Agent│  │Supervisor │          │   │  │
-│  │                  │  └──────────┘  └───────────┘          │   │  │
+│  │  └──────────┘    │  ┌──────────┐  ┌───────────┐           │   │  │
+│  │                  │  │RAG Agent │  │ Web Agent │           │   │  │
+│  │                  │  ├──────────┤  ├───────────┤           │   │  │
+│  │                  │  │Calc Agent│  │Plain LLM  │           │   │  │
+│  │                  │  ├──────────┤  ├───────────┤           │   │  │
+│  │                  │  │Tool Agent│  │Supervisor │           │   │  │
+│  │                  │  └──────────┘  └───────────┘           │   │  │
 │  │                  └────────────────────────────────────────┘   │  │
 │  └───────────────────────────────────────────────────────────────┘  │
-│         │                                                            │
+│         │                                                           │
 │  ┌──────┴────────────────────────────────────────────────────────┐  │
-│  │                     Service Layer                              │  │
+│  │                     Service Layer                             │  │
 │  │  LLM Service │ RAG Service │ Embedding │ Reranker │ WebSearch │  │
 │  │  Chat Service │ Answerability │ Keyword Index │ Ingestion     │  │
 │  └──────┬────────────────────────────────────────────────────────┘  │
-│         │                                                            │
-└─────────┼────────────────────────────────────────────────────────────┘
+│         │                                                           │
+└─────────┼───────────────────────────────────────────────────────────┘
           │
 ┌─────────┼────────────────────────────────────────────────────────────┐
 │         │              External Services & Data Stores               │
-│  ┌──────┴──────┐  ┌──────────┐  ┌────────┐  ┌────────┐  ┌────────┐ │
-│  │   MongoDB   │  │ ChromaDB │  │  Groq  │  │ Gemini │  │ Tavily │ │
-│  │  (Async)    │  │ (Vector) │  │  (LLM) │  │(Embed) │  │ (Web)  │ │
-│  │             │  │          │  │        │  │        │  │        │  │
-│  │• Users      │  │• Vectors │  │• Chat  │  │• Doc   │  │• Live  │  │
-│  │• Chat Hist  │  │• Metadata│  │• Route │  │  Embed │  │  Search│  │
-│  │• Tokens     │  │• BM25 Idx│  │• Agent │  │• Query │  │        │  │
-│  │• Refresh    │  │          │  │        │  │  Embed │  │        │  │
-│  │• Checkpts   │  │          │  │        │  │        │  │        │  │
-│  └─────────────┘  └──────────┘  └────────┘  └────────┘  └────────┘ │
+│  ┌──────┴──────┐  ┌──────────┐  ┌────────┐  ┌────────┐  ┌────────┐   │
+│  │   MongoDB   │  │ ChromaDB │  │  Groq  │  │ Gemini │  │ Tavily │   │
+│  │  (Async)    │  │ (Vector) │  │  (LLM) │  │(Embed) │  │ (Web)  │   │
+│  │             │  │          │  │        │  │        │  │        │   │
+│  │• Users      │  │• Vectors │  │• Chat  │  │• Doc   │  │• Live  │   │
+│  │• Chat Hist  │  │• Metadata│  │• Route │  │  Embed │  │  Search│   │
+│  │• Tokens     │  │• BM25 Idx│  │• Agent │  │• Query │  │        │   │
+│  │• Refresh    │  │          │  │        │  │  Embed │  │        │   │
+│  │• Checkpts   │  │          │  │        │  │        │  │        │   │
+│  └─────────────┘  └──────────┘  └────────┘  └────────┘  └────────┘   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -194,25 +194,25 @@ The RAG system is the core knowledge engine, providing grounded, factual answers
  User Query
      │
      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    1. DOCUMENT INGESTION                        │
-│                                                                 │
-│  Upload (text/PDF/Markdown/code) → Clean → Chunk → Embed       │
-│                                                                 │
-│  ┌───────────┐    ┌───────────┐    ┌────────────┐    ┌───────┐ │
-│  │ Document   │───►│ Cleaning  │───►│  Recursive │───►│Gemini │ │
-│  │ (text,pdf, │    │ & Normali-│    │  Character │    │Embed- │ │
-│  │  md, code) │    │  zation   │    │  Splitter  │    │dings  │ │
-│  └───────────┘    └───────────┘    │ (800 chars, │    │  API  │ │
-│                                    │  100 overlap)│    └───┬───┘ │
-│                                    └──────────────┘        │     │
+┌──────────────────────────────────────────────────────────────────┐
+│                    1. DOCUMENT INGESTION                         │
+│                                                                  │
+│  Upload (text/PDF/Markdown/code) → Clean → Chunk → Embed         │
+│                                                                  │
+│  ┌────────────┐    ┌───────────┐    ┌─────────────┐    ┌───────┐ │
+│  │ Document   │───►│ Cleaning  │───►│  Recursive  │───►│Gemini │ │
+│  │ (text,pdf, │    │ & Normali-│    │  Character  │    │Embed- │ │
+│  │  md, code) │    │  zation   │    │  Splitter   │    │dings  │ │
+│  └────────────┘    └───────────┘    │ (800 chars, │    │  API  │ │
+│                                     │ 100 overlap)│    └───┬───┘ │
+│                                     └─────────────┘        │     │
 │                                                            ▼     │
 │                    ┌──────────────────────────────────────────┐  │
 │                    │         ChromaDB Vector Store            │  │
 │                    │  (per-model collections, metadata,       │  │
 │                    │   content hashing, deduplication)        │  │
 │                    └──────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────┘
 
  User Query
      │
@@ -220,19 +220,19 @@ The RAG system is the core knowledge engine, providing grounded, factual answers
 ┌─────────────────────────────────────────────────────────────────┐
 │                     2. HYBRID RETRIEVAL                         │
 │                                                                 │
-│  ┌─────────────────────┐    ┌──────────────────────┐           │
-│  │  Vector Search       │    │  BM25 Keyword Search  │           │
-│  │  (Gemini embeddings, │    │  (In-memory index,    │           │
-│  │   cosine distance,   │    │   tokenized, IDF      │           │
-│  │   top-k = 10)        │    │   scoring, top-k = 10)│           │
-│  └─────────┬───────────┘    └──────────┬───────────┘           │
+│  ┌─────────────────────┐    ┌──────────────────────┐            │
+│  │  Vector Search      │    │  BM25 Keyword Search │            │
+│  │  (Gemini embeddings,│    │  (In-memory index,   │            │
+│  │   cosine distance,  │    │  tokenized, IDF      │            │
+│  │   top-k = 10)       │    │  scoring, top-k = 10)|            │
+│  └─────────┬───────────┘    └──────────┬───────────┘            │
 │            │                           │                        │
 │            └───────────┬───────────────┘                        │
 │                        ▼                                        │
 │            ┌───────────────────────┐                            │
 │            │  Reciprocal Rank      │                            │
 │            │  Fusion (RRF, k=60)   │                            │
-│            │  + Deduplication       │                            │
+│            │  + Deduplication      │                            │
 │            └───────────┬───────────┘                            │
 │                        │                                        │
 │            Distance threshold filter (≤ 0.35)                   │
@@ -244,7 +244,7 @@ The RAG system is the core knowledge engine, providing grounded, factual answers
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │   Cross-Encoder Reranker                                │    │
-│  │   Model: cross-encoder/ms-marco-MiniLM-L6-v2           │    │
+│  │   Model: cross-encoder/ms-marco-MiniLM-L6-v2            │    │
 │  │   Device: auto (CUDA / CPU)                             │    │
 │  │   Score threshold filtering                             │    │
 │  │   Output: top-3 most relevant chunks                    │    │
@@ -253,7 +253,7 @@ The RAG system is the core knowledge engine, providing grounded, factual answers
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                 4. ANSWERABILITY CHECK                           │
+│                 4. ANSWERABILITY CHECK                          │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │   LLM-as-Judge (Structured Output)                      │    │
@@ -267,7 +267,7 @@ The RAG system is the core knowledge engine, providing grounded, factual answers
 ┌─────────────────────────────────────────────────────────────────┐
 │                   5. LLM GENERATION                             │
 │                                                                 │
-│  Context + Query → Groq LLM → Grounded Answer                  │
+│  Context + Query → Groq LLM → Grounded Answer                   │
 │  (with conversation history, streaming, source citations)       │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -309,8 +309,8 @@ The agent system is built with **LangGraph** and implements a sophisticated mult
                          │
                          ▼
                   ┌──────────────┐
-                  │   Classify    │  ◄── Router LLM (smaller model)
-                  │   Message     │      Structured output → RouteDecision
+                  │   Classify   │  ◄── Router LLM (smaller model)
+                  │   Message    │      Structured output → RouteDecision
                   └──────┬───────┘
                          │
             ┌────────────┼────────────────────────────────┐
@@ -327,23 +327,23 @@ The agent system is built with **LangGraph** and implements a sophisticated mult
             │            │            │         │         │
             ▼            ▼            ▼         ▼         ▼
       ┌──────────────────────────────────────────────────────┐
-      │              Supervisor (Multi-Agent)                  │
-      │                                                        │
-      │  For complex tasks needing multiple capabilities:      │
-      │                                                        │
+      │              Supervisor (Multi-Agent)                │
+      │                                                      │
+      │  For complex tasks needing multiple capabilities:    │
+      │                                                      │
       │   ┌──────────┐  ┌──────────┐  ┌──────────┐           │
-      │   │ Research  │  │ Analysis │  │  Coding  │           │
-      │   │ Worker    │  │ Worker   │  │  Worker  │           │
+      │   │ Research │  │ Analysis │  │  Coding  │           │
+      │   │ Worker   │  │ Worker   │  │  Worker  │           │
       │   └──────────┘  └──────────┘  └──────────┘           │
-      │         │              │             │                 │
-      │         └──────────────┴─────────────┘                 │
-      │                        │                               │
-      │                   Findings                             │
-      │                        │                               │
-      │                   ┌────┴────┐                          │
-      │                   │Finalize │ → Final Answer            │
-      │                   └─────────┘                          │
-      └────────────────────────────────────────────────────────┘
+      │         │              │             │               │
+      │         └──────────────┴─────────────┘               │
+      │                        │                             │
+      │                   Findings                           │
+      │                        │                             │
+      │                   ┌────┴────┐                        │
+      │                   │Finalize │ → Final Answer         │
+      │                   └─────────┘                        │
+      └──────────────────────────────────────────────────────┘
 ```
 
 ### Route Classification
@@ -377,7 +377,7 @@ The **Router** uses a smaller, dedicated LLM model (`ROUTER_MODEL_NAME`) to clas
 For complex tasks that require combining research, calculations, and code generation, the **Supervisor** pattern delegates sub-tasks to specialized workers:
 
 ```
-┌─────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │                  Supervisor Loop                 │
 │                                                  │
 │  1. Decide next worker + task (or finish)        │
@@ -386,15 +386,15 @@ For complex tasks that require combining research, calculations, and code genera
 │  4. After max_rounds or finish → Finalize        │
 │                                                  │
 │  Workers:                                        │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐   │
+│  ┌─────────────┐ ┌────────────┐ ┌────────────┐   │
 │  │  Research   │ │  Analysis  │ │   Coding   │   │
 │  │ • KB search │ │ •Calculator│ │ •Write code│   │
 │  │ • Web search│ │ •Text stats│ │ •Use finds │   │
 │  │ • Pkg info  │ │            │ │            │   │
-│  └────────────┘ └────────────┘ └────────────┘   │
+│  └─────────────┘ └────────────┘ └────────────┘   │
 │                                                  │
 │  Max rounds: SUPERVISOR_MAX_ROUNDS (default: 4)  │
-└─────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────┘
 ```
 
 ---
@@ -422,15 +422,15 @@ For complex tasks that require combining research, calculations, and code genera
             ┌────────────┼────────────┐
             ▼            ▼            ▼
      ┌────────────┐ ┌─────────┐ ┌─────────────┐
-     │  Injection  │ │  Rate   │ │  Body Size  │
-     │  Detection  │ │ Limiter │ │   Limiter   │
-     │ (heuristic) │ │(per user│ │ (6 MB max)  │
-     │             │ │  or IP) │ │             │
+     │  Injection │ │  Rate   │ │  Body Size  │
+     │  Detection │ │ Limiter │ │   Limiter   │
+     │ (heuristic)│ │(per user│ │ (6 MB max)  │
+     │            │ │  or IP) │ │             │
      └──────┬─────┘ └────┬────┘ └──────┬──────┘
             │             │             │
             ▼             ▼             ▼
      ┌─────────────────────────────────────────┐
-     │         Hardened System Prompts          │
+     │         Hardened System Prompts         │
      │  • Security rules override all others   │
      │  • Tool results treated as data only    │
      │  • No role reassignment via messages    │
@@ -567,10 +567,10 @@ frontend/src/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         MongoDB                              │
-│                                                              │
+│                         MongoDB                             │
+│                                                             │
 │  ┌──────────────┐  ┌────────────────┐  ┌────────────────┐   │
-│  │    users      │  │  chat_history   │  │ refresh_tokens │   │
+│  │    users     │  │  chat_history  │  │ refresh_tokens │   │
 │  ├──────────────┤  ├────────────────┤  ├────────────────┤   │
 │  │ _id          │  │ _id            │  │ _id            │   │
 │  │ email (uniq) │  │ user_id        │  │ user_id        │   │
@@ -579,15 +579,15 @@ frontend/src/
 │  └──────────────┘  │ response       │  │ revoked        │   │
 │                    │ model          │  │ created_at     │   │
 │                    │ created_at     │  └────────────────┘   │
-│                    │ (TTL: 90 days) │                        │
-│                    └────────────────┘                        │
-│                                                              │
+│                    │ (TTL: 90 days) │                       │
+│                    └────────────────┘                       │
+│                                                             │
 │  ┌──────────────────┐  ┌──────────────────────────────────┐ │
-│  │   token_usage     │  │  langgraph_checkpoints           │ │
+│  │   token_usage    │  │  langgraph_checkpoints           │ │
 │  ├──────────────────┤  │  (Agent state persistence)       │ │
 │  │ user_id + date   │  │  - Run resume after restart      │ │
 │  │ requests         │  │  - Approval flow state           │ │
-│  │ llm_calls        │  │  - TTL: 7 days (configurable)   │ │
+│  │ llm_calls        │  │  - TTL: 7 days (configurable)    │ │
 │  │ input_tokens     │  └──────────────────────────────────┘ │
 │  │ output_tokens    │                                       │
 │  │ total_tokens     │                                       │
@@ -598,8 +598,8 @@ frontend/src/
 ### ChromaDB (Vector Store)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    ChromaDB Collection                    │
+┌──────────────────────────────────────────────────────────┐
+│                    ChromaDB Collection                   │
 │             (one collection per embedding model)         │
 │                                                          │
 │  Per chunk:                                              │
@@ -614,7 +614,7 @@ frontend/src/
 │      └── embedding_model                                 │
 │                                                          │
 │  + In-memory BM25 index (rebuilt on changes)             │
-└─────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
